@@ -1,0 +1,30 @@
+# Caddy cuida de TLS (Let's Encrypt automático), HTTP/2, compressão e
+# redirecionamento de HTTP para HTTPS. A aplicação não implementa nada disso
+# de propósito: é trabalho de proxy, e o Caddy faz melhor.
+
+{$DOMINIO} {
+	encode gzip zstd
+
+	# Cabeçalho que a aplicação usa para descobrir o IP real do cliente
+	# (rate limit e auditoria). TRUST_PROXY=1 só é seguro porque aqui é o
+	# nosso próprio proxy que o define.
+	reverse_proxy app:8080 {
+		header_up X-Forwarded-For {remote_host}
+		header_up X-Forwarded-Proto {scheme}
+	}
+
+	# HSTS é emitido pela própria aplicação; aqui reforçamos o essencial
+	# caso alguém sirva um erro antes de chegar ao backend.
+	header {
+		-Server
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+	}
+
+	log {
+		output file /data/acesso.log {
+			roll_size 20mb
+			roll_keep 10
+		}
+		format json
+	}
+}

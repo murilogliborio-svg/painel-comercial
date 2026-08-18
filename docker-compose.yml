@@ -1,0 +1,95 @@
+# Produção: aplicação + PostgreSQL + Caddy (TLS automático).
+#
+#   1. cp .env.example .env    e preencha os valores
+#   2. docker compose up -d
+#   3. docker compose exec app node --experimental-strip-types src/main.ts criar-admin voce@empresa.com
+#
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-comercial}
+      POSTGRES_USER: ${POSTGRES_USER:-comercial}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD no .env}
+      # Locale pt_BR para ordenação correta de nomes com acento.
+      POSTGRES_INITDB_ARGS: "--locale=C.UTF-8 --encoding=UTF8"
+    volumes:
+      - dados-db:/var/lib/postgresql/data
+      # Backups gerados pelo serviço "backup" ficam aqui.
+      - ./backups:/backups
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-comercial} -d ${POSTGRES_DB:-comercial}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    # O banco não é exposto para fora da rede do compose.
+    networks: [interna]
+
+  app:
+    build: ./server
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      NODE_ENV: producao
+      DATABASE_URL: postgres://${POSTGRES_USER:-comercial}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-comercial}
+      PGSSLMODE: disable          # rede interna do compose; TLS termina no Caddy
+      APP_URL: ${APP_URL:?defina APP_URL no .env}
+      SECRET_KEY: ${SECRET_KEY:?defina SECRET_KEY no .env}
+      TRUST_PROXY: "1"
+      SESSION_MAX_HOURS: ${SESSION_MAX_HOURS:-12}
+      SESSION_IDLE_MINUTES: ${SESSION_IDLE_MINUTES:-60}
+      RETENCAO_AUDITORIA_DIAS: ${RETENCAO_AUDITORIA_DIAS:-365}
+    volumes:
+      - dados-app:/app/data
+    networks: [interna]
+    # A aplicação não publica porta: só o Caddy fala com ela.
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on: [app]
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMINIO: ${DOMINIO:?defina DOMINIO no .env}
+    volumes:
+      - ./ops/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-dados:/data
+      - caddy-config:/config
+    networks: [interna]
+
+  # Backup diário do banco, com retenção de 14 dias.
+  backup:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - ./backups:/backups
+    networks: [interna]
+    entrypoint: >
+      sh -c 'while true; do
+        arq=/backups/comercial-$$(date +%%Y%%m%%d-%%H%%M).sql.gz;
+        pg_dump -h db -U ${POSTGRES_USER:-comercial} -d ${POSTGRES_DB:-comercial} | gzip > $$arq
+          && echo "backup gerado: $$arq"
+          || echo "FALHA no backup";
+        find /backups -name "comercial-*.sql.gz" -mtime +14 -delete;
+        sleep 86400;
+      done'
+
+volumes:
+  dados-db:
+  dados-app:
+  caddy-dados:
+  caddy-config:
+
+networks:
+  interna:
+    driver: bridge

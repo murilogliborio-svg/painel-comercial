@@ -1,0 +1,49 @@
+# Instalação em um clique no Render.
+#
+# Este arquivo diz ao provedor tudo o que ele precisa saber: como construir,
+# onde guardar os dados e quais variáveis criar. Quem instala só preenche
+# e-mail e senha na tela — nenhum comando, nenhum terminal.
+
+services:
+  - type: web
+    name: painel-comercial
+    runtime: docker
+    plan: starter                 # necessário para ter disco persistente
+    region: oregon
+    dockerfilePath: ./server/Dockerfile
+    dockerContext: ./server
+    healthCheckPath: /api/saude
+
+    # O banco é um arquivo dentro deste disco. Ele sobrevive a reinicializações
+    # e a novas versões do sistema — é onde ficam usuários, importações,
+    # tratativas, notas e metas.
+    disk:
+      name: dados
+      mountPath: /var/dados
+      sizeGB: 1
+
+    envVars:
+      - key: NODE_ENV
+        value: producao
+
+      - key: DATABASE_URL
+        value: sqlite:/var/dados/painel.db
+
+      # Chave usada no hash das senhas. O Render gera sozinho um valor
+      # aleatório e forte. NÃO altere depois: trocar esta chave invalida
+      # todas as senhas já cadastradas.
+      - key: SECRET_KEY
+        generateValue: true
+
+      # A aplicação descobre o próprio endereço pela variável que o Render
+      # injeta (RENDER_EXTERNAL_URL), então não é preciso digitá-lo.
+
+      - key: TRUST_PROXY
+        value: "1"
+
+      # Preenchidos por quem instala, na tela do Render.
+      # A senha é provisória: o sistema exige a troca no primeiro acesso.
+      - key: ADMIN_EMAIL
+        sync: false
+      - key: ADMIN_SENHA
+        sync: false

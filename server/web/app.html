@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Painel Comercial</title>
+<link rel="icon" href="/favicon.ico">
+<link rel="stylesheet" href="/assets/app.css">
+</head>
+<body>
+
+<header class="topo">
+  <div class="topo-int">
+    <div class="marca">Painel Comercial <span id="periodo-base"></span></div>
+    <div class="topo-dir">
+      <div class="quem"><b id="quem-nome">—</b><span id="quem-papel"></span></div>
+      <button class="btn btn-secundario btn-mini" id="btn-tema" type="button">Tema</button>
+      <button class="btn btn-secundario btn-mini" id="btn-senha" type="button">Senha</button>
+      <button class="btn btn-secundario btn-mini" id="btn-sair" type="button">Sair</button>
+    </div>
+  </div>
+  <nav class="abas" id="abas" role="tablist"></nav>
+</header>
+
+<main id="conteudo">
+  <div class="carregando">Carregando...</div>
+</main>
+
+<div class="rodape-app" id="rodape"></div>
+<div id="modal"></div>
+
+<script type="module" src="/assets/app.js"></script>
+</body>
+</html>

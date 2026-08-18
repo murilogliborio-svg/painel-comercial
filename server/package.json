@@ -1,0 +1,26 @@
+{
+  "name": "painel-comercial",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Painel comercial com acesso individual por consultor",
+  "type": "module",
+  "engines": { "node": ">=22.6.0" },
+  "scripts": {
+    "start": "node --no-warnings --experimental-strip-types src/main.ts",
+    "dev": "node --no-warnings --experimental-strip-types --watch src/main.ts",
+    "migrar": "node --no-warnings --experimental-strip-types src/main.ts migrar",
+    "criar-admin": "node --no-warnings --experimental-strip-types src/main.ts criar-admin",
+    "limpar": "node --no-warnings --experimental-strip-types src/main.ts limpar",
+    "test": "node --no-warnings --experimental-strip-types --test test/*.test.ts",
+    "test:db": "node --no-warnings --experimental-strip-types --test test/*.test.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {},
+  "optionalDependencies": {
+    "pg": "^8.13.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.0",
+    "@types/node": "^22.0.0"
+  }
+}
