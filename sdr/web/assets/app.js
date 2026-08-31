@@ -247,7 +247,7 @@ function linhaPasso(passo, idx) {
     </div>
     <div class="linha-form">
       <div class="campo"><label>Dias de espera</label><input type="number" min="0" class="p-dias"></div>
-      <div class="campo" style="flex:3"><label>Objetivo da mensagem</label><input type="text" class="p-objetivo"></div>
+      <div class="campo campo-flex3"><label>Objetivo da mensagem</label><input type="text" class="p-objetivo"></div>
     </div>`;
   div.querySelector('.p-dias').value = passo.diasDeEspera;
   div.querySelector('.p-objetivo').value = passo.objetivo;

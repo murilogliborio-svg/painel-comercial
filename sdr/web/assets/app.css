@@ -354,3 +354,4 @@ td.nome { font-weight: 600; text-align: left; }
 .flex-row-gap8-wrap { display: flex; gap: 8px; flex-wrap: wrap; }
 .campo-160 { flex: 1 1 160px; }
 .campo-220 { flex: 1 1 220px; }
+.campo-flex3 { flex: 3; }
