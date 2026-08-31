@@ -1,0 +1,49 @@
+# Instalação em um clique no Render. Serviço independente do painel-comercial
+# — outra URL, outro admin, outro banco. Quem instala preenche e-mail e senha
+# na tela; as credenciais de WhatsApp e I.A. podem ficar em branco no começo
+# e ser preenchidas depois, sem redeploy de código.
+
+services:
+  - type: web
+    name: sdr-ia
+    runtime: docker
+    plan: starter
+    region: oregon
+    dockerfilePath: ./sdr/Dockerfile
+    dockerContext: ./sdr
+    healthCheckPath: /api/saude
+
+    disk:
+      name: dados
+      mountPath: /var/dados
+      sizeGB: 1
+
+    envVars:
+      - key: NODE_ENV
+        value: producao
+      - key: DATABASE_URL
+        value: sqlite:/var/dados/sdr.db
+      - key: SECRET_KEY
+        generateValue: true
+      - key: TRUST_PROXY
+        value: "1"
+
+      # Preenchidos por quem instala. A senha é provisória.
+      - key: ADMIN_EMAIL
+        sync: false
+      - key: ADMIN_SENHA
+        sync: false
+
+      # Opcionais: sem eles, I.A. desligada e WhatsApp em modo simulado.
+      # Preencha quando tiver a conta Anthropic e a conta comercial do
+      # WhatsApp (Meta Business) prontas — não precisa de redeploy.
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: ANTHROPIC_MODEL
+        value: claude-sonnet-5
+      - key: WHATSAPP_TOKEN
+        sync: false
+      - key: WHATSAPP_PHONE_NUMBER_ID
+        sync: false
+      - key: WHATSAPP_VERIFY_TOKEN
+        sync: false

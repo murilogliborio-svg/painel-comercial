@@ -1,0 +1,211 @@
+/**
+ * Ponto de entrada. Sobe o servidor, aplica migrations, agenda manutenção e
+ * a varredura de aquecimento, e trata encerramento gracioso.
+ *
+ *   node src/main.ts migrar        aplica migrations e sai
+ *   node src/main.ts criar-admin   cria o primeiro administrador
+ *   node src/main.ts limpar        expurga auditoria e sessões vencidas
+ */
+
+import { fileURLToPath } from 'node:url';
+import { dirname, join } from 'node:path';
+
+import { carregarConfig } from './config.ts';
+import { connect, migrate, type Db } from './db/index.ts';
+import { criarServidor } from './http/servidor.ts';
+import { montarApp } from './app.ts';
+import { limparSessoes } from './auth/sessao.ts';
+import { expurgarAuditoria, criarAuditor } from './lib/auditoria.ts';
+import { gerarHash, validarPolitica } from './auth/senha.ts';
+import { ulid, senhaProvisoria } from './lib/ids.ts';
+import { obterPersona, obterRegras } from './domain/config.ts';
+import { varrerLeadsDevidos } from './domain/mensagens.ts';
+
+const AQUI = dirname(fileURLToPath(import.meta.url));
+const DIR_WEB = join(AQUI, '..', 'web');
+
+function log(linha: Record<string, unknown>): void {
+  process.stdout.write(JSON.stringify({ ts: new Date().toISOString(), ...linha }) + '\n');
+}
+
+async function criarAdmin(db: Db, segredo: string, email?: string, senha?: string): Promise<void> {
+  const mail = (email ?? process.env.ADMIN_EMAIL ?? '').toLowerCase().trim();
+  if (!mail) throw new Error('Informe o e-mail: node src/main.ts criar-admin <email> [senha]');
+
+  const existente = await db.get<{ id: string }>('SELECT id FROM users WHERE email = ?', [mail]);
+  if (existente) throw new Error(`Já existe um usuário com o e-mail ${mail}.`);
+
+  const pw = senha ?? process.env.ADMIN_SENHA ?? senhaProvisoria();
+  const pol = validarPolitica(pw, [mail]);
+  if (!pol.ok) throw new Error(`Senha recusada pela política: ${pol.erros.join(' ')}`);
+
+  const agora = new Date().toISOString();
+  await db.run(
+    `INSERT INTO users (id, email, nome, papel, senha_hash, trocar_senha, ativo, criado_em, atualizado_em)
+     VALUES (?, ?, 'Administrador', 'admin', ?, ?, 1, ?, ?)`,
+    [ulid(), mail, await gerarHash(pw, segredo), senha ? 0 : 1, agora, agora],
+  );
+
+  process.stdout.write(
+    `\nAdministrador criado.\n  e-mail: ${mail}\n  senha:  ${pw}\n` +
+    (senha ? '' : '  (senha provisória: será exigida a troca no primeiro acesso)\n') +
+    '\nAnote agora. Esta senha não é exibida de novo.\n\n',
+  );
+}
+
+async function garantirAdmin(db: Db, segredo: string): Promise<void> {
+  const admins = await db.get<{ n: number }>(
+    "SELECT COUNT(*) AS n FROM users WHERE papel = 'admin' AND ativo = 1",
+  );
+  if (Number(admins?.n ?? 0) > 0) return;
+
+  const email = (process.env.ADMIN_EMAIL ?? '').toLowerCase().trim();
+  const senha = process.env.ADMIN_SENHA ?? '';
+
+  if (!email || !senha) {
+    log({
+      nivel: 'aviso',
+      msg: 'Nenhum administrador cadastrado. Defina ADMIN_EMAIL e ADMIN_SENHA nas variáveis de '
+         + 'ambiente e reinicie, ou rode: node src/main.ts criar-admin <email>',
+    });
+    return;
+  }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) {
+    log({ nivel: 'erro', msg: `ADMIN_EMAIL não é um e-mail válido: "${email}"` });
+    return;
+  }
+  if (senha.length < 8) {
+    log({ nivel: 'erro', msg: 'ADMIN_SENHA precisa ter ao menos 8 caracteres.' });
+    return;
+  }
+
+  const jaExiste = await db.get('SELECT id FROM users WHERE email = ?', [email]);
+  if (jaExiste) {
+    log({ nivel: 'aviso', msg: `Já existe usuário com o e-mail ${email}; nenhum admin foi criado.` });
+    return;
+  }
+
+  const agora = new Date().toISOString();
+  await db.run(
+    `INSERT INTO users (id, email, nome, papel, senha_hash, trocar_senha, ativo, criado_em, atualizado_em)
+     VALUES (?, ?, 'Administrador', 'admin', ?, 1, 1, ?, ?)`,
+    [ulid(), email, await gerarHash(senha, segredo), agora, agora],
+  );
+  log({ nivel: 'info', msg: `Administrador criado: ${email}. A troca de senha será exigida no primeiro acesso.` });
+}
+
+async function principal(): Promise<void> {
+  const cfg = carregarConfig();
+  const db = await connect(cfg.databaseUrl);
+  const comando = process.argv[2];
+
+  const aplicadas = await migrate(db, (m) => log({ nivel: 'info', msg: m }));
+  if (aplicadas.length) log({ nivel: 'info', msg: 'migrations aplicadas', migrations: aplicadas });
+
+  if (comando === 'migrar') {
+    log({ nivel: 'info', msg: 'schema em dia' });
+    await db.close();
+    return;
+  }
+  if (comando === 'criar-admin') {
+    await criarAdmin(db, cfg.segredoSenha, process.argv[3], process.argv[4]);
+    await db.close();
+    return;
+  }
+  if (comando === 'limpar') {
+    const s = await limparSessoes(db);
+    const a = await expurgarAuditoria(db, cfg.retencaoAuditoriaDias);
+    log({ nivel: 'info', msg: 'manutenção concluída', sessoesRemovidas: s, auditoriaRemovida: a });
+    await db.close();
+    return;
+  }
+
+  await garantirAdmin(db, cfg.segredoSenha);
+
+  if (!cfg.ia.apiKey) {
+    log({ nivel: 'aviso', msg: 'ANTHROPIC_API_KEY não definida: a geração automática de mensagens está desligada. Configure a chave para ativar.' });
+  }
+  log({
+    nivel: 'info',
+    msg: cfg.whatsapp.modo === 'simulado'
+      ? 'WhatsApp em MODO SIMULADO: nenhuma mensagem sai de verdade. Configure WHATSAPP_TOKEN, WHATSAPP_PHONE_NUMBER_ID e WHATSAPP_VERIFY_TOKEN para enviar de verdade.'
+      : 'WhatsApp em modo real: as mensagens automáticas serão enviadas de verdade.',
+  });
+
+  const { roteador } = montarApp(db, cfg, DIR_WEB);
+  const servidor = criarServidor({
+    roteador,
+    https: cfg.https,
+    confiarProxy: cfg.confiarProxy,
+    maxJsonBytes: cfg.maxJsonBytes,
+    maxUploadBytes: cfg.maxJsonBytes,
+    origemPublica: cfg.origemPublica,
+    aoLogar: (l) => { if (l['nivel'] !== 'acesso' || cfg.ambiente !== 'producao' || Number(l['status']) >= 400) log(l); },
+  });
+
+  servidor.headersTimeout = 20_000;
+  servidor.requestTimeout = 120_000;
+  servidor.keepAliveTimeout = 65_000;
+
+  const auditor = criarAuditor(db, (e) => log({ nivel: 'erro', msg: 'auditoria falhou', erro: String(e) }));
+
+  const manutencao = setInterval(() => {
+    void (async () => {
+      try {
+        const s = await limparSessoes(db);
+        const a = await expurgarAuditoria(db, cfg.retencaoAuditoriaDias);
+        if (s || a) log({ nivel: 'info', msg: 'manutenção', sessoes: s, auditoria: a });
+      } catch (e) {
+        log({ nivel: 'erro', msg: 'manutenção falhou', erro: String(e) });
+      }
+    })();
+  }, 6 * 3_600_000);
+  manutencao.unref();
+
+  // Varredura periódica: dispara a próxima mensagem de aquecimento devida de
+  // cada lead elegível, respeitando as regras (horário, teto diário,
+  // intervalo mínimo, opt-out). É o "motor" da automação autônoma.
+  const varredura = setInterval(() => {
+    void (async () => {
+      try {
+        const persona = await obterPersona(db);
+        const regras = await obterRegras(db);
+        const resultados = await varrerLeadsDevidos(db, persona, regras, cfg.ia, cfg.whatsapp, auditor);
+        const enviados = resultados.filter((r) => r.enviado).length;
+        if (resultados.length) {
+          log({ nivel: 'info', msg: 'varredura de aquecimento', processados: resultados.length, enviados });
+        }
+      } catch (e) {
+        log({ nivel: 'erro', msg: 'varredura falhou', erro: String(e) });
+      }
+    })();
+  }, cfg.varreduraMs);
+  varredura.unref();
+
+  await new Promise<void>((resolve) => servidor.listen(cfg.porta, cfg.host, resolve));
+  log({
+    nivel: 'info', msg: 'servidor sdr-ia no ar',
+    porta: cfg.porta, ambiente: cfg.ambiente, banco: db.dialect, url: cfg.origemPublica,
+    whatsapp: cfg.whatsapp.modo, ia: cfg.ia.apiKey ? 'ligada' : 'desligada',
+  });
+
+  let encerrando = false;
+  const encerrar = (sinal: string) => {
+    if (encerrando) return;
+    encerrando = true;
+    log({ nivel: 'info', msg: 'encerrando', sinal });
+    clearInterval(manutencao);
+    clearInterval(varredura);
+    servidor.close(() => {
+      void db.close().then(() => process.exit(0));
+    });
+    setTimeout(() => process.exit(1), 15_000).unref();
+  };
+  process.on('SIGTERM', () => encerrar('SIGTERM'));
+  process.on('SIGINT', () => encerrar('SIGINT'));
+}
+
+principal().catch((e) => {
+  process.stderr.write(`\nFalha ao iniciar: ${e instanceof Error ? e.message : String(e)}\n\n`);
+  process.exit(1);
+});

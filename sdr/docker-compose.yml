@@ -1,0 +1,52 @@
+# Serviço independente do painel-comercial: outro domínio, outro processo,
+# outro banco. SQLite é suficiente aqui (o volume é o time comercial de uma
+# empresa, não os clientes finais) — backup é copiar o arquivo.
+#
+#   1. cp .env.example .env    e preencha os valores
+#   2. docker compose up -d
+#   3. docker compose exec app node --experimental-strip-types src/main.ts criar-admin voce@empresa.com
+#
+services:
+  app:
+    build: .
+    restart: unless-stopped
+    environment:
+      NODE_ENV: producao
+      DATABASE_URL: sqlite:/app/data/app.db
+      APP_URL: ${APP_URL:?defina APP_URL no .env}
+      SECRET_KEY: ${SECRET_KEY:?defina SECRET_KEY no .env}
+      TRUST_PROXY: "1"
+      # Sem estas três, o WhatsApp roda em modo simulado — ver README.
+      WHATSAPP_TOKEN: ${WHATSAPP_TOKEN:-}
+      WHATSAPP_PHONE_NUMBER_ID: ${WHATSAPP_PHONE_NUMBER_ID:-}
+      WHATSAPP_VERIFY_TOKEN: ${WHATSAPP_VERIFY_TOKEN:-}
+      # Sem esta, a geração de mensagem por I.A. fica desligada.
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      ANTHROPIC_MODEL: ${ANTHROPIC_MODEL:-claude-sonnet-5}
+    volumes:
+      - dados-app:/app/data
+    networks: [interna]
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on: [app]
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMINIO: ${DOMINIO:?defina DOMINIO no .env}
+    volumes:
+      - ./ops/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-dados:/data
+      - caddy-config:/config
+    networks: [interna]
+
+volumes:
+  dados-app:
+  caddy-dados:
+  caddy-config:
+
+networks:
+  interna:
+    driver: bridge

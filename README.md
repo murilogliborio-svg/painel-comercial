@@ -238,6 +238,12 @@ Endpoint de saúde: `GET /api/saude`.
 
 ---
 
+## Serviços deste repositório
+
+- [`server/`](server/) — este painel comercial.
+- [`sdr/`](sdr/README.md) — SDR de I.A.: automação de aquecimento de clientes
+  por WhatsApp, com login e hospedagem próprios, independente deste painel.
+
 ## Documentos
 
 - [SEGURANCA.md](SEGURANCA.md) — decisões de segurança e o que fazer num incidente

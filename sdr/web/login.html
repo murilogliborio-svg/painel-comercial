@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Entrar — SDR de I.A.</title>
+<link rel="icon" href="/favicon.ico">
+<link rel="stylesheet" href="/assets/app.css">
+</head>
+<body>
+<div class="login-tela">
+  <div class="login-cartao">
+    <h1>SDR de I.A.</h1>
+    <div class="sub">Acesso restrito ao time comercial.</div>
+
+    <form id="form-login" autocomplete="on" novalidate>
+      <label for="email">E-mail</label>
+      <input type="email" id="email" name="email" required autocomplete="username"
+             autocapitalize="none" spellcheck="false" placeholder="voce@empresa.com.br">
+
+      <label for="senha">Senha</label>
+      <input type="password" id="senha" name="senha" required autocomplete="current-password">
+
+      <button type="submit" class="btn btn-largo" id="entrar">Entrar</button>
+      <div class="erro-caixa escondido" id="erro" role="alert" aria-live="assertive"></div>
+    </form>
+
+    <p class="lede rodape-login">
+      Esqueceu a senha? Procure o administrador — só ele pode redefinir.
+    </p>
+  </div>
+</div>
+<script type="module" src="/assets/login.js"></script>
+</body>
+</html>

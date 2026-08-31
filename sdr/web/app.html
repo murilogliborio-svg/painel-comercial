@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SDR de I.A.</title>
+<link rel="icon" href="/favicon.ico">
+<link rel="stylesheet" href="/assets/app.css">
+</head>
+<body>
+<header class="topo">
+  <div class="topo-int">
+    <div class="marca">SDR de I.A. <span>aquecimento de clientes</span></div>
+    <div class="topo-dir">
+      <div class="quem"><b id="quem-nome">—</b><span id="quem-papel"></span></div>
+      <button class="btn btn-secundario btn-mini" id="btn-sair">Sair</button>
+    </div>
+  </div>
+  <nav class="abas" id="abas">
+    <button data-aba="leads" aria-selected="true">Leads</button>
+    <button data-aba="config" id="aba-config" hidden>Configuração</button>
+    <button data-aba="usuarios" id="aba-usuarios" hidden>Usuários</button>
+    <button data-aba="auditoria" id="aba-auditoria" hidden>Auditoria</button>
+  </nav>
+</header>
+
+<main>
+  <div id="aviso-global" class="aviso escondido"></div>
+
+  <!-- ------------------------------------------------------------ Leads -->
+  <section id="painel-leads">
+    <div class="linha-form mb-14">
+      <div class="campo">
+        <label for="filtro-busca">Buscar</label>
+        <input type="text" id="filtro-busca" placeholder="Nome ou telefone">
+      </div>
+      <div class="campo">
+        <label for="filtro-estagio">Estágio</label>
+        <select id="filtro-estagio">
+          <option value="">Todos</option>
+          <option value="novo">Novo</option>
+          <option value="aquecendo">Aquecendo</option>
+          <option value="aguardando_resposta">Aguardando resposta</option>
+          <option value="respondeu">Respondeu</option>
+          <option value="quente">Quente</option>
+          <option value="convertido">Convertido</option>
+          <option value="perdido">Perdido</option>
+          <option value="pausado">Pausado</option>
+        </select>
+      </div>
+      <button class="btn" id="btn-novo-lead">+ Novo lead</button>
+    </div>
+
+    <div class="layout-leads">
+      <div class="lista-leads" id="lista-leads">
+        <div class="carregando">Carregando...</div>
+      </div>
+
+      <div class="cartao" id="painel-lead-vazio">
+        <p class="vazio">Selecione um lead na lista para ver a conversa.</p>
+      </div>
+
+      <div id="painel-lead" class="escondido flex-col-gap14">
+        <div class="cartao">
+          <div class="painel-lead-cab">
+            <div>
+              <h2 id="lead-nome">—</h2>
+              <div class="lede mt-2" id="lead-telefone"></div>
+            </div>
+            <span class="selo s-neutro" id="lead-estagio-selo">—</span>
+          </div>
+
+          <div class="campos-rapidos mt-14">
+            <div class="campo campo-160">
+              <label for="lead-estagio">Estágio</label>
+              <select id="lead-estagio">
+                <option value="novo">Novo</option>
+                <option value="aquecendo">Aquecendo</option>
+                <option value="aguardando_resposta">Aguardando resposta</option>
+                <option value="respondeu">Respondeu</option>
+                <option value="quente">Quente</option>
+                <option value="convertido">Convertido</option>
+                <option value="perdido">Perdido</option>
+                <option value="pausado">Pausado</option>
+              </select>
+            </div>
+            <div class="campo campo-220">
+              <label for="lead-contexto">Contexto (usado pela I.A. para personalizar)</label>
+              <textarea id="lead-contexto" placeholder="Ex.: interessado em evento de 150 pessoas em outubro"></textarea>
+            </div>
+          </div>
+          <div class="mt-12 flex-row-gap8-wrap">
+            <button class="btn btn-secundario btn-mini" id="btn-salvar-lead">Salvar</button>
+            <button class="btn btn-secundario btn-mini" id="btn-toggle-automacao">—</button>
+          </div>
+          <dl class="chave-valor mt-14">
+            <dt>Origem</dt><dd id="lead-origem">—</dd>
+            <dt>Passo da sequência</dt><dd id="lead-passo">—</dd>
+            <dt>Automação</dt><dd id="lead-automacao">—</dd>
+          </dl>
+        </div>
+
+        <div class="cartao conversa">
+          <div class="conversa-msgs" id="conversa-msgs"></div>
+          <form class="conversa-form" id="form-conversa">
+            <textarea id="conversa-texto" placeholder="Escrever mensagem manual (pausa a automação deste lead)..."></textarea>
+            <button class="btn" type="submit">Enviar</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- --------------------------------------------------------- Configuração -->
+  <section id="painel-config" hidden>
+    <div class="grade g-2">
+      <div class="cartao">
+        <h3>Persona da I.A.</h3>
+        <p class="lede">Como a I.A. se apresenta e o tom que ela deve manter em toda mensagem.</p>
+        <form id="form-persona">
+          <label for="p-empresa">Nome da empresa</label>
+          <input type="text" id="p-empresa">
+          <label for="p-atendente">Assina como</label>
+          <input type="text" id="p-atendente">
+          <label for="p-tom">Tom</label>
+          <textarea id="p-tom"></textarea>
+          <label for="p-diretrizes">Diretrizes adicionais (opcional)</label>
+          <textarea id="p-diretrizes" placeholder="Ex.: nunca mencionar preço; sempre convidar para visita"></textarea>
+          <button class="btn btn-largo" type="submit">Salvar persona</button>
+        </form>
+      </div>
+
+      <div class="cartao">
+        <h3>Regras de envio autônomo</h3>
+        <p class="lede">A I.A. só envia dentro destes limites. Na dúvida, ela não envia.</p>
+        <form id="form-regras">
+          <div class="linha-form">
+            <div class="campo"><label for="r-hi">Horário inicial</label><input type="number" id="r-hi" min="0" max="23"></div>
+            <div class="campo"><label for="r-hf">Horário final</label><input type="number" id="r-hf" min="0" max="23"></div>
+          </div>
+          <div class="linha-form">
+            <div class="campo"><label for="r-teto">Teto de mensagens/dia (todo o sistema)</label><input type="number" id="r-teto" min="1"></div>
+            <div class="campo"><label for="r-intervalo">Intervalo mínimo entre msgs (horas)</label><input type="number" id="r-intervalo" min="1"></div>
+          </div>
+          <div class="campo"><label for="r-semresposta">Pausar após quantas mensagens sem resposta</label><input type="number" id="r-semresposta" min="1"></div>
+          <label for="r-optout">Palavras de opt-out (separadas por vírgula)</label>
+          <textarea id="r-optout"></textarea>
+          <div class="secao">Sequência de aquecimento</div>
+          <div class="passos-config" id="passos-config"></div>
+          <button class="btn btn-largo mt-16" type="submit">Salvar regras</button>
+        </form>
+        <button class="btn btn-secundario btn-largo mt-10" id="btn-varredura">Disparar varredura agora</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ------------------------------------------------------------ Usuários -->
+  <section id="painel-usuarios" hidden>
+    <div class="cartao mb-16">
+      <h3>Novo usuário</h3>
+      <form id="form-usuario" class="linha-form">
+        <div class="campo"><label for="u-nome">Nome</label><input type="text" id="u-nome"></div>
+        <div class="campo"><label for="u-email">E-mail</label><input type="email" id="u-email"></div>
+        <div class="campo">
+          <label for="u-papel">Perfil</label>
+          <select id="u-papel"><option value="comercial">comercial</option><option value="admin">admin</option></select>
+        </div>
+        <button class="btn" type="submit">Criar</button>
+      </form>
+    </div>
+    <div class="cartao rolagem">
+      <table id="tabela-usuarios">
+        <thead><tr><th>Nome</th><th>E-mail</th><th>Perfil</th><th>Ativo</th><th>Último login</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ----------------------------------------------------------- Auditoria -->
+  <section id="painel-auditoria" hidden>
+    <div class="cartao rolagem">
+      <table id="tabela-auditoria">
+        <thead><tr><th>Quando</th><th>Quem</th><th>Ação</th><th>Entidade</th><th>Sucesso</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+</main>
+
+<div class="modal-fundo escondido" id="modal-fundo">
+  <div class="modal">
+    <h3>Novo lead</h3>
+    <form id="form-lead">
+      <label for="l-nome">Nome</label>
+      <input type="text" id="l-nome" required>
+      <label for="l-telefone">Telefone (com DDI e DDD)</label>
+      <input type="text" id="l-telefone" placeholder="5511999999999" required>
+      <label for="l-email">E-mail (opcional)</label>
+      <input type="email" id="l-email">
+      <label for="l-origem">Origem (opcional)</label>
+      <input type="text" id="l-origem" placeholder="Ex.: site, indicação, feira">
+      <label for="l-contexto">Contexto para a I.A. (opcional)</label>
+      <textarea id="l-contexto"></textarea>
+      <div class="acoes">
+        <button type="button" class="btn btn-secundario" id="btn-cancelar-lead">Cancelar</button>
+        <button type="submit" class="btn">Criar lead</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script type="module" src="/assets/app.js"></script>
+</body>
+</html>
