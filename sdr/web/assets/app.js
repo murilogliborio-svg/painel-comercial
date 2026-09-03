@@ -1,6 +1,9 @@
 /* Painel do SDR de I.A. — sem framework, sem script inline (CSP proíbe). */
 
-const csrf = () => sessionStorage.getItem('csrf') || '';
+function csrf() {
+  const m = document.cookie.match(/(?:^|;\s*)(?:__Host-)?sdr-csrf=([^;]*)/);
+  return m ? decodeURIComponent(m[1]) : '';
+}
 
 async function api(caminho, opts = {}) {
   const metodo = opts.method || 'GET';

@@ -29,7 +29,6 @@ form.addEventListener('submit', async (ev) => {
       mostrarErro(j.mensagem || 'Não foi possível entrar.');
       return;
     }
-    sessionStorage.setItem('csrf', j.csrf || '');
     location.href = '/painel';
   } catch {
     mostrarErro('Falha de conexão com o servidor. Tente novamente.');
