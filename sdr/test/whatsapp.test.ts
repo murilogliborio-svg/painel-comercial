@@ -1,7 +1,7 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  normalizarTelefone, verificarWebhook, extrairMensagensInbound, enviar,
+  normalizarTelefone, verificarWebhook, extrairMensagensInbound, enviar, enviarTemplate,
 } from '../src/integracoes/whatsapp.ts';
 
 describe('normalização de telefone', () => {
@@ -55,10 +55,18 @@ describe('extração de mensagens inbound', () => {
 });
 
 describe('modo simulado', () => {
-  test('não faz chamada de rede e devolve sucesso simulado', async () => {
+  test('não faz chamada de rede e devolve sucesso simulado (texto livre)', async () => {
     const r = await enviar(
       { modo: 'simulado', token: null, phoneNumberId: null, verifyToken: null, apiVersion: 'v20.0' },
       '5511999999999', 'oi',
+    );
+    assert.deepEqual(r, { ok: true, simulado: true, idExterno: null });
+  });
+
+  test('não faz chamada de rede e devolve sucesso simulado (modelo)', async () => {
+    const r = await enviarTemplate(
+      { modo: 'simulado', token: null, phoneNumberId: null, verifyToken: null, apiVersion: 'v20.0' },
+      '5511999999999', 'abertura_evento', 'pt_BR', ['Fulano'],
     );
     assert.deepEqual(r, { ok: true, simulado: true, idExterno: null });
   });

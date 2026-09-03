@@ -38,11 +38,7 @@ export function normalizarTelefone(v: string): string {
   return v.replace(/\D/g, '');
 }
 
-export async function enviar(cfg: ConfigWhatsapp, telefone: string, texto: string): Promise<ResultadoEnvio> {
-  if (cfg.modo === 'simulado') {
-    return { ok: true, simulado: true, idExterno: null };
-  }
-
+async function postarMensagem(cfg: ConfigWhatsapp, corpo: Record<string, unknown>): Promise<ResultadoEnvio> {
   const url = `https://graph.facebook.com/${cfg.apiVersion}/${cfg.phoneNumberId}/messages`;
   try {
     const resp = await fetch(url, {
@@ -51,12 +47,7 @@ export async function enviar(cfg: ConfigWhatsapp, telefone: string, texto: strin
         'content-type': 'application/json',
         authorization: `Bearer ${cfg.token}`,
       },
-      body: JSON.stringify({
-        messaging_product: 'whatsapp',
-        to: normalizarTelefone(telefone),
-        type: 'text',
-        text: { body: texto },
-      }),
+      body: JSON.stringify({ messaging_product: 'whatsapp', ...corpo }),
     });
     const json = await resp.json().catch(() => ({})) as {
       messages?: Array<{ id: string }>;
@@ -69,6 +60,46 @@ export async function enviar(cfg: ConfigWhatsapp, telefone: string, texto: strin
   } catch (e) {
     return { ok: false, simulado: false, idExterno: null, erro: String(e) };
   }
+}
+
+/** Texto livre — só é entregue dentro da janela de atendimento de 24h (ver regras.ts `janelaDeServicoAtiva`). */
+export async function enviar(cfg: ConfigWhatsapp, telefone: string, texto: string): Promise<ResultadoEnvio> {
+  if (cfg.modo === 'simulado') {
+    return { ok: true, simulado: true, idExterno: null };
+  }
+  return postarMensagem(cfg, {
+    to: normalizarTelefone(telefone),
+    type: 'text',
+    text: { body: texto },
+  });
+}
+
+/**
+ * Modelo (template) pré-aprovado pela Meta — o único jeito de a empresa
+ * iniciar ou retomar uma conversa fora da janela de 24h. `parametros`
+ * preenche, em ordem, as variáveis {{1}}, {{2}}... do corpo do modelo.
+ */
+export async function enviarTemplate(
+  cfg: ConfigWhatsapp,
+  telefone: string,
+  nomeTemplate: string,
+  idioma: string,
+  parametros: string[],
+): Promise<ResultadoEnvio> {
+  if (cfg.modo === 'simulado') {
+    return { ok: true, simulado: true, idExterno: null };
+  }
+  return postarMensagem(cfg, {
+    to: normalizarTelefone(telefone),
+    type: 'template',
+    template: {
+      name: nomeTemplate,
+      language: { code: idioma },
+      components: parametros.length
+        ? [{ type: 'body', parameters: parametros.map((texto) => ({ type: 'text', text: texto })) }]
+        : [],
+    },
+  });
 }
 
 /**

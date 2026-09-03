@@ -26,9 +26,16 @@ export interface RegrasEnvio {
   /**
    * Sequência de aquecimento: cada posição é um passo, com o número de dias
    * de espera desde o passo anterior (posição 0 = primeira mensagem, espera
-   * a partir da criação do lead) e o objetivo passado para a I.A. gerar o texto.
+   * a partir da criação do lead), o objetivo (rótulo para o time entender o
+   * propósito do passo) e o modelo (template) aprovado pela Meta a usar —
+   * ver `nomeTemplate`.
    */
-  passos: Array<{ diasDeEspera: number; objetivo: string }>;
+  passos: Array<{ diasDeEspera: number; objetivo: string; nomeTemplate: string }>;
+  /**
+   * Código de idioma (formato da Meta, ex.: "pt_BR") usado em todo envio de
+   * modelo. Um só idioma para todos os passos: mantém simples.
+   */
+  idiomaTemplates: string;
 }
 
 export function regrasPadrao(): RegrasEnvio {
@@ -44,10 +51,11 @@ export function regrasPadrao(): RegrasEnvio {
       'sair da lista', 'remover meu contato', 'pare de me chamar', 'stop',
     ],
     passos: [
-      { diasDeEspera: 0, objetivo: 'Primeiro contato: apresentação breve e calorosa, sem pedir nada ainda, mostrando que existe uma pessoa real acompanhando o interesse do lead.' },
-      { diasDeEspera: 3, objetivo: 'Reforço leve: retomar contato com uma pergunta simples e aberta, mostrando disponibilidade, sem pressão.' },
-      { diasDeEspera: 7, objetivo: 'Convite direto para uma conversa ou próximo passo concreto (ligação, visita, proposta), deixando fácil para o lead responder.' },
+      { diasDeEspera: 0, objetivo: 'Primeiro contato: apresentação breve e calorosa, sem pedir nada ainda, mostrando que existe uma pessoa real acompanhando o interesse do lead.', nomeTemplate: '' },
+      { diasDeEspera: 3, objetivo: 'Reforço leve: retomar contato com uma pergunta simples e aberta, mostrando disponibilidade, sem pressão.', nomeTemplate: '' },
+      { diasDeEspera: 7, objetivo: 'Convite direto para uma conversa ou próximo passo concreto (ligação, visita, proposta), deixando fácil para o lead responder.', nomeTemplate: '' },
     ],
+    idiomaTemplates: 'pt_BR',
   };
 }
 
@@ -120,4 +128,24 @@ export function calcularProximaMensagemEm(
 
 export function objetivoDoPasso(regras: RegrasEnvio, passo: number): string {
   return regras.passos[passo]?.objetivo ?? 'Retomar contato de forma breve e cordial.';
+}
+
+export function nomeTemplateDoPasso(regras: RegrasEnvio, passo: number): string {
+  return regras.passos[passo]?.nomeTemplate?.trim() ?? '';
+}
+
+const JANELA_SERVICO_MS = 24 * 3_600_000;
+
+/**
+ * A Cloud API do WhatsApp só entrega texto livre dentro de 24h da última
+ * mensagem que o PRÓPRIO lead mandou (a "janela de atendimento"). Fora
+ * dessa janela — o caso comum aqui, já que a automação para assim que o
+ * lead responde — qualquer mensagem iniciada pela empresa precisa ser um
+ * modelo (template) pré-aprovado pela Meta; texto livre é aceito pela API
+ * mas nunca chega no celular do lead.
+ */
+export function janelaDeServicoAtiva(ultimaRespostaEm: string | null, agora: Date): boolean {
+  if (!ultimaRespostaEm) return false;
+  const desde = agora.getTime() - Date.parse(ultimaRespostaEm);
+  return desde >= 0 && desde < JANELA_SERVICO_MS;
 }

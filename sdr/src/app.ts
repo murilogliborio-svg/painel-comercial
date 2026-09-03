@@ -31,6 +31,7 @@ import {
 } from './domain/leads.ts';
 import { obterPersona, definirPersona, obterRegras, definirRegras } from './domain/config.ts';
 import { tratarMensagemRecebida, varrerLeadsDevidos } from './domain/mensagens.ts';
+import { janelaDeServicoAtiva } from './domain/regras.ts';
 import {
   verificarWebhook, extrairMensagensInbound, normalizarTelefone, enviar as enviarWhatsapp,
 } from './integracoes/whatsapp.ts';
@@ -379,6 +380,19 @@ export function montarApp(db: Db, cfg: Config, dirWeb: string): Aplicacao {
     const lead = await buscarLead(db, id);
     if (!lead) throw erro.naoEncontrado('Lead não encontrado.');
     const texto = str(corpo(req)['texto'], 'texto', { max: 2000 });
+
+    // Fora da janela de 24h desde a última resposta do lead, o WhatsApp
+    // aceita texto livre pela API mas nunca entrega — barra aqui em vez de
+    // deixar parecer que enviou. O primeiro contato/reengajamento é feito
+    // por modelo aprovado, pela automação (ver domain/mensagens.ts).
+    if (cfg.whatsapp.modo === 'real' && !janelaDeServicoAtiva(lead.ultima_resposta_em, new Date())) {
+      throw erro.requisicao(
+        'Este lead ainda não te respondeu (ou já passou mais de 24h desde a última resposta). ' +
+        'O WhatsApp só entrega texto livre depois que o cliente escreve primeiro — mensagem ' +
+        'livre agora seria aceita e nunca chegaria. A automação cuida do primeiro contato via ' +
+        'modelo aprovado; assim que ele responder, esta caixa libera.',
+      );
+    }
 
     const resultado = await enviarWhatsapp(
       { modo: cfg.whatsapp.modo, token: cfg.whatsapp.token, phoneNumberId: cfg.whatsapp.phoneNumberId,

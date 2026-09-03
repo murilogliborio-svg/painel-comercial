@@ -2,7 +2,7 @@ import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   regrasPadrao, dentroDaJanelaComercial, contemOptOut, leadElegivel,
-  calcularProximaMensagemEm, objetivoDoPasso, type Lead,
+  calcularProximaMensagemEm, objetivoDoPasso, nomeTemplateDoPasso, janelaDeServicoAtiva, type Lead,
 } from '../src/domain/regras.ts';
 
 function leadBase(overrides: Partial<Lead> = {}): Lead {
@@ -130,5 +130,38 @@ describe('sequência de aquecimento', () => {
   test('objetivoDoPasso cai num texto genérico fora do intervalo configurado', () => {
     const regras = regrasPadrao();
     assert.match(objetivoDoPasso(regras, 999), /./);
+  });
+
+  test('nomeTemplateDoPasso devolve string vazia fora do intervalo configurado', () => {
+    const regras = regrasPadrao();
+    assert.equal(nomeTemplateDoPasso(regras, 999), '');
+  });
+});
+
+describe('janela de serviço de 24h (texto livre x modelo aprovado)', () => {
+  const agora = new Date('2026-09-02T14:00:00Z');
+
+  test('sem resposta alguma do lead: janela fechada', () => {
+    assert.equal(janelaDeServicoAtiva(null, agora), false);
+  });
+
+  test('lead respondeu há 1h: janela aberta', () => {
+    const umaHoraAtras = new Date(agora.getTime() - 3_600_000).toISOString();
+    assert.equal(janelaDeServicoAtiva(umaHoraAtras, agora), true);
+  });
+
+  test('lead respondeu há 23h59: ainda dentro da janela', () => {
+    const quaseNoLimite = new Date(agora.getTime() - (24 * 3_600_000 - 60_000)).toISOString();
+    assert.equal(janelaDeServicoAtiva(quaseNoLimite, agora), true);
+  });
+
+  test('lead respondeu há 25h: janela fechada, precisa de modelo', () => {
+    const vinteECincoHorasAtras = new Date(agora.getTime() - 25 * 3_600_000).toISOString();
+    assert.equal(janelaDeServicoAtiva(vinteECincoHorasAtras, agora), false);
+  });
+
+  test('data de resposta no futuro (relógio bagunçado) não quebra: trata como fechada', () => {
+    const futuro = new Date(agora.getTime() + 3_600_000).toISOString();
+    assert.equal(janelaDeServicoAtiva(futuro, agora), false);
   });
 });

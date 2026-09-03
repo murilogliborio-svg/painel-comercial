@@ -146,6 +146,15 @@
           <label for="r-optout">Palavras de opt-out (separadas por vírgula)</label>
           <textarea id="r-optout"></textarea>
           <div class="secao">Sequência de aquecimento</div>
+          <p class="lede">
+            Sem resposta do lead nas últimas 24h, o WhatsApp só entrega mensagem se for um
+            <strong>modelo aprovado pela Meta</strong> — texto livre da I.A. não chega. Cadastre o
+            nome exato do modelo (Meta &gt; WhatsApp Manager &gt; Modelos de mensagem) em cada
+            passo; ele recebe o nome do lead como variável {{1}}. Passo sem modelo configurado
+            fica pausado até você preencher.
+          </p>
+          <div class="campo"><label for="r-idioma-template">Idioma dos modelos (código da Meta)</label>
+            <input type="text" id="r-idioma-template" placeholder="pt_BR"></div>
           <div class="passos-config" id="passos-config"></div>
           <button class="btn btn-largo mt-16" type="submit">Salvar regras</button>
         </form>

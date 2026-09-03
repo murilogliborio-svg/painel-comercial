@@ -8,9 +8,12 @@ import type { Db } from '../db/index.ts';
 import { ulid } from '../lib/ids.ts';
 import type { Auditor } from '../lib/auditoria.ts';
 import { gerarMensagem, ErroIA, type PersonaConfig } from '../integracoes/ia.ts';
-import { enviar as enviarWhatsapp, type ConfigWhatsapp } from '../integracoes/whatsapp.ts';
 import {
-  leadElegivel, calcularProximaMensagemEm, objetivoDoPasso, contemOptOut, type RegrasEnvio,
+  enviar as enviarWhatsapp, enviarTemplate, type ConfigWhatsapp, type ResultadoEnvio,
+} from '../integracoes/whatsapp.ts';
+import {
+  leadElegivel, calcularProximaMensagemEm, objetivoDoPasso, nomeTemplateDoPasso,
+  janelaDeServicoAtiva, contemOptOut, type RegrasEnvio,
 } from './regras.ts';
 import {
   listarLeadsDevidos, listarMensagens, avancarSequencia, marcarOptOut, registrarResposta,
@@ -77,33 +80,51 @@ export async function processarLead(
     return { leadId: lead.id, enviado: false, motivo: 'teto_diario_atingido' };
   }
 
-  const historicoBruto = await listarMensagens(db, lead.id, 20);
-  const historico = historicoBruto.map((h) => ({
-    direcao: (h as { direcao: 'saida' | 'entrada' }).direcao,
-    texto: (h as { texto: string }).texto,
-  }));
+  // A Cloud API só entrega texto livre dentro de 24h da última mensagem que
+  // o LEAD mandou. Como a automação para assim que ele responde (vira
+  // "respondeu", fora do fluxo automático), na prática todo envio daqui é
+  // fora dessa janela — precisa ser um modelo (template) pré-aprovado pela
+  // Meta. Texto livre da I.A. nesse caso seria aceito pela API só pra nunca
+  // chegar no celular do lead.
+  const janelaAberta = janelaDeServicoAtiva(lead.ultima_resposta_em, agora);
 
   let texto: string;
-  try {
-    texto = await gerarMensagem(
-      {
-        persona,
-        lead: { nome: lead.nome, origem: lead.origem, contexto: lead.contexto },
-        objetivoPasso: objetivoDoPasso(regras, lead.sequencia_passo),
-        historico,
-      },
-      cfgIa,
-    );
-  } catch (e) {
-    const motivo = e instanceof ErroIA ? e.codigo : 'erro_ia_desconhecido';
-    await auditor({
-      acao: 'mensagem.falhou', entidade: 'lead', entidadeId: lead.id,
-      detalhe: { etapa: 'geracao', motivo, erro: String(e) },
-    });
-    return { leadId: lead.id, enviado: false, motivo: `falha_geracao:${motivo}` };
+  let envio: ResultadoEnvio;
+
+  if (janelaAberta) {
+    const historicoBruto = await listarMensagens(db, lead.id, 20);
+    const historico = historicoBruto.map((h) => ({
+      direcao: (h as { direcao: 'saida' | 'entrada' }).direcao,
+      texto: (h as { texto: string }).texto,
+    }));
+    try {
+      texto = await gerarMensagem(
+        {
+          persona,
+          lead: { nome: lead.nome, origem: lead.origem, contexto: lead.contexto },
+          objetivoPasso: objetivoDoPasso(regras, lead.sequencia_passo),
+          historico,
+        },
+        cfgIa,
+      );
+    } catch (e) {
+      const motivo = e instanceof ErroIA ? e.codigo : 'erro_ia_desconhecido';
+      await auditor({
+        acao: 'mensagem.falhou', entidade: 'lead', entidadeId: lead.id,
+        detalhe: { etapa: 'geracao', motivo, erro: String(e) },
+      });
+      return { leadId: lead.id, enviado: false, motivo: `falha_geracao:${motivo}` };
+    }
+    envio = await enviarWhatsapp(cfgWhatsapp, lead.telefone, texto);
+  } else {
+    const nomeTemplate = nomeTemplateDoPasso(regras, lead.sequencia_passo);
+    if (!nomeTemplate) {
+      return { leadId: lead.id, enviado: false, motivo: 'template_nao_configurado' };
+    }
+    texto = `Mensagem-modelo "${nomeTemplate}" enviada (parâmetro: ${lead.nome}).`;
+    envio = await enviarTemplate(cfgWhatsapp, lead.telefone, nomeTemplate, regras.idiomaTemplates, [lead.nome]);
   }
 
-  const envio = await enviarWhatsapp(cfgWhatsapp, lead.telefone, texto);
   const proximoPasso = lead.sequencia_passo + 1;
   const proximaEm = calcularProximaMensagemEm(regras, proximoPasso, agora);
   const novoEstagio = proximoPasso >= regras.passos.length ? 'aguardando_resposta' : 'aquecendo';
