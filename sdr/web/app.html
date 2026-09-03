@@ -63,48 +63,55 @@
       <div id="painel-lead" class="escondido flex-col-gap14">
         <div class="cartao">
           <div class="painel-lead-cab">
-            <div>
+            <span class="avatar avatar-lg" id="lead-avatar">—</span>
+            <div class="painel-lead-id">
               <h2 id="lead-nome">—</h2>
               <div class="lede mt-2" id="lead-telefone"></div>
             </div>
             <span class="selo s-neutro" id="lead-estagio-selo">—</span>
           </div>
 
-          <div class="campos-rapidos mt-14">
-            <div class="campo campo-160">
-              <label for="lead-estagio">Estágio</label>
-              <select id="lead-estagio">
-                <option value="novo">Novo</option>
-                <option value="aquecendo">Aquecendo</option>
-                <option value="aguardando_resposta">Aguardando resposta</option>
-                <option value="respondeu">Respondeu</option>
-                <option value="quente">Quente</option>
-                <option value="convertido">Convertido</option>
-                <option value="perdido">Perdido</option>
-                <option value="pausado">Pausado</option>
-              </select>
+          <div class="detalhes-lead">
+            <div class="campos-rapidos">
+              <div class="campo campo-160">
+                <label for="lead-estagio">Estágio</label>
+                <select id="lead-estagio">
+                  <option value="novo">Novo</option>
+                  <option value="aquecendo">Aquecendo</option>
+                  <option value="aguardando_resposta">Aguardando resposta</option>
+                  <option value="respondeu">Respondeu</option>
+                  <option value="quente">Quente</option>
+                  <option value="convertido">Convertido</option>
+                  <option value="perdido">Perdido</option>
+                  <option value="pausado">Pausado</option>
+                </select>
+              </div>
+              <div class="campo campo-220">
+                <label for="lead-contexto">Contexto (usado pela I.A. para personalizar)</label>
+                <textarea id="lead-contexto" placeholder="Ex.: interessado em evento de 150 pessoas em outubro"></textarea>
+              </div>
             </div>
-            <div class="campo campo-220">
-              <label for="lead-contexto">Contexto (usado pela I.A. para personalizar)</label>
-              <textarea id="lead-contexto" placeholder="Ex.: interessado em evento de 150 pessoas em outubro"></textarea>
+            <div class="mt-12 flex-row-gap8-wrap">
+              <button class="btn btn-secundario btn-mini" id="btn-salvar-lead">Salvar</button>
+              <button class="btn btn-secundario btn-mini" id="btn-toggle-automacao">—</button>
             </div>
+            <dl class="chave-valor mt-14">
+              <dt>Origem</dt><dd id="lead-origem">—</dd>
+              <dt>Passo da sequência</dt><dd id="lead-passo">—</dd>
+              <dt>Automação</dt><dd id="lead-automacao">—</dd>
+            </dl>
           </div>
-          <div class="mt-12 flex-row-gap8-wrap">
-            <button class="btn btn-secundario btn-mini" id="btn-salvar-lead">Salvar</button>
-            <button class="btn btn-secundario btn-mini" id="btn-toggle-automacao">—</button>
-          </div>
-          <dl class="chave-valor mt-14">
-            <dt>Origem</dt><dd id="lead-origem">—</dd>
-            <dt>Passo da sequência</dt><dd id="lead-passo">—</dd>
-            <dt>Automação</dt><dd id="lead-automacao">—</dd>
-          </dl>
         </div>
 
         <div class="cartao conversa">
           <div class="conversa-msgs" id="conversa-msgs"></div>
+          <div class="aviso-janela escondido" id="aviso-janela">
+            Este lead ainda não respondeu (ou já passou 24h) — texto livre não seria entregue.
+            A automação cuida do primeiro contato via modelo aprovado.
+          </div>
           <form class="conversa-form" id="form-conversa">
             <textarea id="conversa-texto" placeholder="Escrever mensagem manual (pausa a automação deste lead)..."></textarea>
-            <button class="btn" type="submit">Enviar</button>
+            <button class="btn" type="submit" aria-label="Enviar">➤</button>
           </form>
         </div>
       </div>

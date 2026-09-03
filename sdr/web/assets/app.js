@@ -35,6 +35,48 @@ function fmtData(iso) {
   return d.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
 }
 
+/** Estilo WhatsApp: hora se for hoje, "Ontem" se foi ontem, dd/mm senão. */
+function fmtDataLista(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  const hoje = new Date();
+  const diasAtras = Math.floor((hoje.setHours(0, 0, 0, 0) - new Date(d).setHours(0, 0, 0, 0)) / 86_400_000);
+  if (diasAtras === 0) return d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  if (diasAtras === 1) return 'Ontem';
+  return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+}
+
+function iniciais(nome) {
+  const partes = (nome || '?').trim().split(/\s+/);
+  const a = partes[0]?.[0] || '?';
+  const b = partes.length > 1 ? partes[partes.length - 1][0] : '';
+  return (a + b).toUpperCase();
+}
+
+/** Cor determinística por nome — mesmo lead sempre com a mesma cor, sem inline style (CSP proíbe). */
+function classeAvatar(nome) {
+  let h = 0;
+  for (const c of nome || '') h = (h * 31 + c.charCodeAt(0)) >>> 0;
+  return `avatar-c${h % 8}`;
+}
+
+function iconeTique(status) {
+  if (status === 'entregue' || status === 'lida') {
+    return `<svg class="tique${status === 'lida' ? ' tique-lida' : ''}" viewBox="0 0 18 12" width="18" height="12" aria-hidden="true">`
+      + `<path d="M1 6l3.5 3.5L11 3" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>`
+      + `<path d="M6 6l3.5 3.5L17 3" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+  }
+  return `<svg class="tique" viewBox="0 0 12 12" width="12" height="12" aria-hidden="true">`
+    + `<path d="M1 6l3.5 3.5L11 3" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+}
+
+/** Janela de atendimento de 24h — mesma regra do backend (regras.ts janelaDeServicoAtiva). */
+function janelaAberta(ultimaRespostaEm) {
+  if (!ultimaRespostaEm) return false;
+  const desde = Date.now() - Date.parse(ultimaRespostaEm);
+  return desde >= 0 && desde < 24 * 3_600_000;
+}
+
 const ROTULO_ESTAGIO = {
   novo: 'Novo', aquecendo: 'Aquecendo', aguardando_resposta: 'Aguardando resposta',
   respondeu: 'Respondeu', quente: 'Quente', convertido: 'Convertido',
@@ -179,18 +221,29 @@ function renderLista(leads) {
   if (leads.length === 0) { el.innerHTML = '<div class="vazio">Nenhum lead encontrado.</div>'; return; }
   el.innerHTML = '';
   for (const lead of leads) {
+    const precisaAtencao = lead.estagio === 'respondeu';
     const btn = document.createElement('button');
-    btn.className = 'item-lead';
+    btn.className = `item-lead${precisaAtencao ? ' precisa-atencao' : ''}`;
     btn.setAttribute('aria-selected', String(LEAD_ATUAL && LEAD_ATUAL.id === lead.id));
     btn.innerHTML = `
-      <div class="nome"></div>
-      <div class="meta">
-        <span class="tel"></span>
-        <span class="selo s-neutro"></span>
-      </div>`;
+      <span class="avatar ${classeAvatar(lead.nome)}"></span>
+      <span class="item-lead-corpo">
+        <span class="item-lead-topo">
+          <span class="nome"></span>
+          <span class="quando"></span>
+        </span>
+        <span class="item-lead-baixo">
+          <span class="preview"></span>
+          ${precisaAtencao ? '<span class="ponto-atencao" title="Precisa de atenção"></span>' : ''}
+        </span>
+      </span>`;
+    btn.querySelector('.avatar').textContent = iniciais(lead.nome);
     btn.querySelector('.nome').textContent = lead.nome;
-    btn.querySelector('.tel').textContent = lead.telefone;
-    btn.querySelector('.selo').textContent = ROTULO_ESTAGIO[lead.estagio] || lead.estagio;
+    btn.querySelector('.quando').textContent = fmtDataLista(lead.ultima_mensagem_em);
+    const prefixo = lead.ultima_mensagem_direcao === 'saida' ? 'Você: ' : '';
+    btn.querySelector('.preview').textContent = lead.ultima_mensagem_texto
+      ? prefixo + lead.ultima_mensagem_texto
+      : (ROTULO_ESTAGIO[lead.estagio] || lead.estagio);
     btn.addEventListener('click', () => selecionarLead(lead.id));
     el.appendChild(btn);
   }
@@ -209,6 +262,9 @@ async function abrirLead(id) {
   document.getElementById('painel-lead-vazio').classList.add('escondido');
   document.getElementById('painel-lead').classList.remove('escondido');
 
+  const avatar = document.getElementById('lead-avatar');
+  avatar.textContent = iniciais(LEAD_ATUAL.nome);
+  avatar.className = `avatar avatar-lg ${classeAvatar(LEAD_ATUAL.nome)}`;
   document.getElementById('lead-nome').textContent = LEAD_ATUAL.nome;
   document.getElementById('lead-telefone').textContent = LEAD_ATUAL.telefone;
   document.getElementById('lead-estagio-selo').textContent = ROTULO_ESTAGIO[LEAD_ATUAL.estagio] || LEAD_ATUAL.estagio;
@@ -223,6 +279,8 @@ async function abrirLead(id) {
   btnAuto.textContent = LEAD_ATUAL.automacao_ativa ? 'Pausar automação' : 'Retomar automação';
   btnAuto.disabled = !!LEAD_ATUAL.opt_out;
 
+  document.getElementById('aviso-janela').classList.toggle('escondido', janelaAberta(LEAD_ATUAL.ultima_resposta_em));
+
   const msgs = document.getElementById('conversa-msgs');
   msgs.innerHTML = '';
   for (const m of j.mensagens) {
@@ -231,10 +289,18 @@ async function abrirLead(id) {
     const selo = m.gerada_por_ia ? '<span class="selo-ia">Gerada por I.A.</span>' : '';
     div.innerHTML = `${selo}<span class="texto"></span><span class="quando"></span>`;
     div.querySelector('.texto').textContent = m.texto;
-    const sufixo = m.status === 'simulada' ? ' · simulada'
-      : m.status === 'falhou' ? ` · falhou${m.erro ? ': ' + m.erro : ''}`
-      : '';
-    div.querySelector('.quando').textContent = `${fmtData(m.criado_em)}${sufixo}`;
+
+    const quando = div.querySelector('.quando');
+    if (m.status === 'simulada') {
+      quando.append(`${fmtData(m.criado_em)} · simulada`);
+    } else if (m.status === 'falhou') {
+      quando.append(`${fmtData(m.criado_em)} · falhou${m.erro ? ': ' + m.erro : ''}`);
+    } else {
+      quando.append(fmtData(m.criado_em));
+      if (m.direcao === 'saida') {
+        quando.insertAdjacentHTML('beforeend', iconeTique(m.entrega_status || 'enviada'));
+      }
+    }
     msgs.appendChild(div);
   }
   msgs.scrollTop = msgs.scrollHeight;
