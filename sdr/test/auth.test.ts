@@ -123,6 +123,43 @@ describe('RBAC: comercial não acessa rotas de admin', () => {
     assert.equal(Number(orfas?.n ?? -1), 0);
   });
 
+  test('importação de leads por CSV: cria, pula duplicado, reporta linha inválida', async () => {
+    await amb.criarUsuario({ email: 'com5@teste.com', papel: 'comercial' });
+    const cli = amb.cliente();
+    await cli.login('com5@teste.com');
+
+    // Um telefone já cadastrado antes da importação, pra confirmar que
+    // repetido é pulado (não sobrescreve).
+    await cli.req('POST', '/api/leads', { nome: 'Já Existia', telefone: '5511900001111' });
+
+    const csv = [
+      'nome,telefone,contexto',
+      'Novo Lead Um,5511900002222,quer orçamento de casamento',
+      'Já Existia,5511900001111,não deveria duplicar',
+      ',5511900003333,sem nome',
+    ].join('\n');
+
+    const r = await cli.req('POST', '/api/leads/importar', { csv });
+    assert.equal(r.status, 200);
+    assert.equal(r.corpo.criados, 1);
+    assert.equal(r.corpo.duplicados, 1);
+    assert.equal(r.corpo.erros.length, 1);
+    assert.match(r.corpo.erros[0].motivo, /nome/);
+
+    const lista = await cli.req('GET', `/api/leads?busca=${encodeURIComponent('Novo Lead Um')}`);
+    assert.equal(lista.corpo.leads.length, 1);
+    assert.equal(lista.corpo.leads[0].contexto, 'quer orçamento de casamento');
+  });
+
+  test('importação sem colunas de nome/telefone reconhecíveis é recusada com mensagem clara', async () => {
+    await amb.criarUsuario({ email: 'com6@teste.com', papel: 'comercial' });
+    const cli = amb.cliente();
+    await cli.login('com6@teste.com');
+
+    const r = await cli.req('POST', '/api/leads/importar', { csv: 'coluna_a,coluna_b\nx,y\n' });
+    assert.equal(r.status, 400);
+  });
+
   test('excluir lead inexistente devolve 404', async () => {
     await amb.criarUsuario({ email: 'com4@teste.com', papel: 'comercial' });
     const cli = amb.cliente();

@@ -48,6 +48,7 @@
           <option value="pausado">Pausado</option>
         </select>
       </div>
+      <button class="btn btn-secundario" id="btn-importar-leads">Importar planilha</button>
       <button class="btn" id="btn-novo-lead">+ Novo lead</button>
     </div>
 
@@ -244,6 +245,24 @@
         <button type="submit" class="btn">Criar lead</button>
       </div>
     </form>
+  </div>
+</div>
+
+<div class="modal-fundo escondido" id="modal-importar-fundo">
+  <div class="modal">
+    <h3>Importar leads por planilha</h3>
+    <p class="lede">
+      Arquivo CSV (exportado do Excel/Sheets), com colunas de nome e telefone — e-mail, origem e contexto
+      são opcionais. A primeira linha precisa ser o cabeçalho. Quem já está cadastrado (mesmo telefone) é
+      pulado, não sobrescrito.
+    </p>
+    <label for="imp-arquivo">Arquivo CSV</label>
+    <input type="file" id="imp-arquivo" accept=".csv,text/csv">
+    <div id="imp-resultado" class="escondido mt-14"></div>
+    <div class="acoes">
+      <button type="button" class="btn btn-secundario" id="btn-cancelar-importar">Fechar</button>
+      <button type="button" class="btn" id="btn-confirmar-importar">Importar</button>
+    </div>
   </div>
 </div>
 

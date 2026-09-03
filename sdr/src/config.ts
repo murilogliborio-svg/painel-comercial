@@ -154,7 +154,10 @@ export function carregarConfig(env: NodeJS.ProcessEnv = process.env): Config {
       maxPorIp: num('LOGIN_MAX_POR_IP', env.LOGIN_MAX_POR_IP, 20),
       janelaMs: num('LOGIN_JANELA_MINUTOS', env.LOGIN_JANELA_MINUTOS, 15) * 60_000,
     },
-    maxJsonBytes: num('JSON_MAX_KB', env.JSON_MAX_KB, 256) * 1024,
+    // 2MB de padrão (não 256KB) porque a importação de leads por CSV manda
+    // o arquivo inteiro num corpo JSON — uma planilha de leads parados
+    // razoável passa disso fácil. Continua ajustável por JSON_MAX_KB.
+    maxJsonBytes: num('JSON_MAX_KB', env.JSON_MAX_KB, 2048) * 1024,
     retencaoAuditoriaDias: num('RETENCAO_AUDITORIA_DIAS', env.RETENCAO_AUDITORIA_DIAS, 365),
     confiarProxy: bool(env.TRUST_PROXY, producao),
     ia: {

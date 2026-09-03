@@ -208,6 +208,38 @@ function configurarLeads() {
     } catch (e) { avisar(e.message, 'a-erro'); }
   });
 
+  document.getElementById('btn-importar-leads').addEventListener('click', () => {
+    document.getElementById('imp-arquivo').value = '';
+    document.getElementById('imp-resultado').classList.add('escondido');
+    document.getElementById('modal-importar-fundo').classList.remove('escondido');
+  });
+  document.getElementById('btn-cancelar-importar').addEventListener('click', () => {
+    document.getElementById('modal-importar-fundo').classList.add('escondido');
+  });
+  document.getElementById('btn-confirmar-importar').addEventListener('click', async () => {
+    const arquivo = document.getElementById('imp-arquivo').files[0];
+    if (!arquivo) { avisar('Escolha um arquivo CSV primeiro.', 'a-erro'); return; }
+    const resultadoEl = document.getElementById('imp-resultado');
+    try {
+      const csv = await arquivo.text();
+      const j = await api('/api/leads/importar', { method: 'POST', body: { csv } });
+      resultadoEl.classList.remove('escondido');
+      resultadoEl.innerHTML = '';
+      const p1 = document.createElement('p');
+      p1.textContent = `${j.criados} lead(s) criado(s). ${j.duplicados} já existia(m) (pulado(s), não sobrescrito(s)).`;
+      resultadoEl.appendChild(p1);
+      if (j.erros.length > 0) {
+        const p2 = document.createElement('p');
+        const primeiros = j.erros.slice(0, 5).map((e) => `linha ${e.linha} (${e.motivo})`).join(', ');
+        p2.textContent = `${j.erros.length} linha(s) com problema: ${primeiros}${j.erros.length > 5 ? '…' : ''}`;
+        resultadoEl.appendChild(p2);
+      }
+      await carregarLeads();
+    } catch (e) {
+      avisar(e.message, 'a-erro');
+    }
+  });
+
   document.getElementById('form-conversa').addEventListener('submit', async (ev) => {
     ev.preventDefault();
     if (!LEAD_ATUAL) return;

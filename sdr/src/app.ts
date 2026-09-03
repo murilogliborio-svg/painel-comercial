@@ -27,8 +27,9 @@ import {
 } from './auth/contexto.ts';
 import {
   criarLead, buscarLead, buscarLeadPorTelefone, listarLeads, atualizarLead,
-  excluirLead, listarMensagens, atualizarStatusEntrega,
+  excluirLead, importarLeads, listarMensagens, atualizarStatusEntrega,
 } from './domain/leads.ts';
+import { parseCsv, mapearLinhasCsv } from './lib/csv.ts';
 import {
   obterPersona, definirPersona, obterRegras, definirRegras, obterQualificacao, definirQualificacao,
 } from './domain/config.ts';
@@ -348,6 +349,32 @@ export function montarApp(db: Db, cfg: Config, dirWeb: string): Aplicacao {
       }
       throw e;
     }
+  });
+
+  /**
+   * Importação em massa via CSV (leads parados que a equipe quer voltar a
+   * aquecer). Aceita cabeçalho em várias variações de nome de coluna — ver
+   * lib/csv.ts. Nunca sobrescreve lead existente: telefone repetido é
+   * contado como duplicado e pulado, não atualizado.
+   */
+  r.post('/api/leads/importar', async (req): Promise<Resposta> => {
+    const a = exigirAuth(req);
+    const csv = str(corpo(req)['csv'], 'csv', { max: 1_800_000 });
+    const linhasBrutas = parseCsv(csv);
+    const { colunasReconhecidas, linhas } = mapearLinhasCsv(linhasBrutas);
+    if (!colunasReconhecidas.includes('nome') || !colunasReconhecidas.includes('telefone')) {
+      throw erro.requisicao(
+        'Não encontrei colunas de nome e telefone no arquivo. Confira se a primeira linha é o '
+        + 'cabeçalho (ex.: "nome, telefone, contexto").',
+      );
+    }
+    const resultado = await importarLeads(db, linhas, a.usuario.id);
+    await auditor({
+      acao: 'leads.importados', userId: a.usuario.id, email: a.usuario.email,
+      entidade: 'lead', ip: req.ip, userAgent: req.userAgent,
+      detalhe: { criados: resultado.criados, duplicados: resultado.duplicados, erros: resultado.erros.length },
+    });
+    return { status: 200, corpo: { ok: true, ...resultado } };
   });
 
   r.get('/api/leads/:id', async (req): Promise<Resposta> => {

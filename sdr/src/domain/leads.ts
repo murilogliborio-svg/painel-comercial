@@ -7,6 +7,7 @@
 import type { Db } from '../db/index.ts';
 import { ulid } from '../lib/ids.ts';
 import { normalizarTelefone } from '../integracoes/whatsapp.ts';
+import type { LinhaLeadImportado } from '../lib/csv.ts';
 
 export interface Lead {
   id: string;
@@ -57,6 +58,41 @@ export async function criarLead(db: Db, dados: NovoLead, criadoPor: string): Pro
     ],
   );
   return (await buscarLead(db, id))!;
+}
+
+export interface ResultadoImportacao {
+  criados: number;
+  duplicados: number;
+  erros: Array<{ linha: number; motivo: string }>;
+}
+
+/**
+ * Cria um lead por linha reconhecida do CSV, pulando (sem travar o resto do
+ * arquivo) quem já existe pelo telefone — nunca sobrescreve um lead ou
+ * conversa existente por engano. Cada linha ainda passa pela mesma
+ * validação de criarLead().
+ */
+export async function importarLeads(
+  db: Db,
+  linhas: Array<{ numero: number; dados: LinhaLeadImportado | null; motivo: string | null }>,
+  criadoPor: string,
+): Promise<ResultadoImportacao> {
+  const resultado: ResultadoImportacao = { criados: 0, duplicados: 0, erros: [] };
+  for (const linha of linhas) {
+    if (!linha.dados) {
+      resultado.erros.push({ linha: linha.numero, motivo: linha.motivo ?? 'linha inválida' });
+      continue;
+    }
+    try {
+      const existente = await buscarLeadPorTelefone(db, linha.dados.telefone);
+      if (existente) { resultado.duplicados++; continue; }
+      await criarLead(db, linha.dados, criadoPor);
+      resultado.criados++;
+    } catch (e) {
+      resultado.erros.push({ linha: linha.numero, motivo: String(e) });
+    }
+  }
+  return resultado;
 }
 
 export async function buscarLead(db: Db, id: string): Promise<Lead | null> {
