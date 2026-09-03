@@ -10,6 +10,7 @@ import { regrasPadrao, type RegrasEnvio } from './regras.ts';
 
 const CHAVE_PERSONA = 'persona';
 const CHAVE_REGRAS = 'regras';
+const CHAVE_QUALIFICACAO = 'qualificacao';
 
 export function personaPadrao(): PersonaConfig {
   return {
@@ -17,6 +18,25 @@ export function personaPadrao(): PersonaConfig {
     nomeAtendente: 'Equipe comercial',
     tom: 'caloroso, direto, próximo — como uma pessoa real do time escrevendo, não um anúncio',
     diretrizes: '',
+  };
+}
+
+export interface QualificacaoConfig {
+  /** Liga/desliga a I.A. continuando a conversa depois que o lead responde. Desligado = sempre humano a partir da resposta. */
+  ativa: boolean;
+  /** Teto de segurança: quantas mensagens a I.A. manda nessa fase antes de encerrar e passar pra um humano de qualquer forma. */
+  maxMensagens: number;
+  /** O que a I.A. deve tentar descobrir antes de considerar o lead pronto para um vendedor. */
+  objetivo: string;
+}
+
+export function qualificacaoPadrao(): QualificacaoConfig {
+  return {
+    ativa: true,
+    maxMensagens: 6,
+    objetivo:
+      'Número de convidados, data prevista do evento, local desejado (ou se ainda não decidiu) e estilo/tema '
+      + 'da festa. Se o lead demonstrar urgência ou pedir preço/orçamento, considere isso suficiente também.',
   };
 }
 
@@ -56,4 +76,12 @@ export async function obterRegras(db: Db): Promise<RegrasEnvio> {
 
 export async function definirRegras(db: Db, regras: RegrasEnvio, userId: string): Promise<void> {
   await gravarConfig(db, CHAVE_REGRAS, regras, userId);
+}
+
+export async function obterQualificacao(db: Db): Promise<QualificacaoConfig> {
+  return lerConfig(db, CHAVE_QUALIFICACAO, qualificacaoPadrao());
+}
+
+export async function definirQualificacao(db: Db, cfg: QualificacaoConfig, userId: string): Promise<void> {
+  await gravarConfig(db, CHAVE_QUALIFICACAO, cfg, userId);
 }

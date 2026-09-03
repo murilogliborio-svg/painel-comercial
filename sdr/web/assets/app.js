@@ -192,6 +192,22 @@ function configurarLeads() {
     } catch (e) { avisar(e.message, 'a-erro'); }
   });
 
+  document.getElementById('btn-excluir-lead').addEventListener('click', async () => {
+    if (!LEAD_ATUAL) return;
+    const confirma = confirm(
+      `Excluir "${LEAD_ATUAL.nome}" e toda a conversa com ele? Essa ação não pode ser desfeita.`,
+    );
+    if (!confirma) return;
+    try {
+      await api(`/api/leads/${LEAD_ATUAL.id}`, { method: 'DELETE' });
+      LEAD_ATUAL = null;
+      document.getElementById('painel-lead').classList.add('escondido');
+      document.getElementById('painel-lead-vazio').classList.remove('escondido');
+      avisar('Lead excluído.');
+      await carregarLeads();
+    } catch (e) { avisar(e.message, 'a-erro'); }
+  });
+
   document.getElementById('form-conversa').addEventListener('submit', async (ev) => {
     ev.preventDefault();
     if (!LEAD_ATUAL) return;
@@ -377,12 +393,30 @@ function configurarConfig() {
       avisar(`Varredura concluída: ${j.resultados.length} lead(s) avaliado(s), ${enviados} mensagem(ns) enviada(s).`);
     } catch (e) { avisar(e.message, 'a-erro'); }
   });
+
+  document.getElementById('form-qualificacao').addEventListener('submit', async (ev) => {
+    ev.preventDefault();
+    try {
+      await api('/api/config/qualificacao', {
+        method: 'PUT',
+        body: {
+          ativa: document.getElementById('q-ativa').checked,
+          maxMensagens: Number(val('q-max')),
+          objetivo: val('q-objetivo'),
+        },
+      });
+      avisar('Qualificação salva.');
+    } catch (e) { avisar(e.message, 'a-erro'); }
+  });
 }
 
 async function carregarConfig() {
-  const [{ persona }, { regras }] = await Promise.all([
-    api('/api/config/persona'), api('/api/config/regras'),
+  const [{ persona }, { regras }, { qualificacao }] = await Promise.all([
+    api('/api/config/persona'), api('/api/config/regras'), api('/api/config/qualificacao'),
   ]);
+  document.getElementById('q-ativa').checked = qualificacao.ativa;
+  document.getElementById('q-max').value = qualificacao.maxMensagens;
+  document.getElementById('q-objetivo').value = qualificacao.objetivo;
   document.getElementById('p-empresa').value = persona.nomeEmpresa;
   document.getElementById('p-atendente').value = persona.nomeAtendente;
   document.getElementById('p-tom').value = persona.tom;

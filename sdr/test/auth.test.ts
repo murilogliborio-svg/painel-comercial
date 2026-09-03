@@ -96,6 +96,41 @@ describe('RBAC: comercial não acessa rotas de admin', () => {
     assert.equal(lista.corpo.leads.length, 1);
   });
 
+  test('excluir lead apaga ele e a conversa, e é irreversível (404 depois)', async () => {
+    await amb.criarUsuario({ email: 'com3@teste.com', papel: 'comercial' });
+    const cli = amb.cliente();
+    await cli.login('com3@teste.com');
+
+    const criado = await cli.req('POST', '/api/leads', { nome: 'Lead Descartável', telefone: '5511977776666' });
+    assert.equal(criado.status, 201);
+    const id = criado.corpo.lead.id;
+
+    await cli.req('POST', `/api/leads/${id}/mensagens`, { texto: 'mensagem de teste' });
+    const antes = await cli.req('GET', `/api/leads/${id}`);
+    assert.equal(antes.corpo.mensagens.length, 1);
+
+    const excluido = await cli.req('DELETE', `/api/leads/${id}`);
+    assert.equal(excluido.status, 200);
+
+    const depois = await cli.req('GET', `/api/leads/${id}`);
+    assert.equal(depois.status, 404);
+
+    // Mensagens somem junto (ON DELETE CASCADE) — confirma direto no banco,
+    // já que a rota que as listava não existe mais pra esse lead.
+    const orfas = await amb.db.get<{ n: number }>(
+      'SELECT COUNT(*) AS n FROM mensagens WHERE lead_id = ?', [id],
+    );
+    assert.equal(Number(orfas?.n ?? -1), 0);
+  });
+
+  test('excluir lead inexistente devolve 404', async () => {
+    await amb.criarUsuario({ email: 'com4@teste.com', papel: 'comercial' });
+    const cli = amb.cliente();
+    await cli.login('com4@teste.com');
+    const r = await cli.req('DELETE', '/api/leads/nao-existe');
+    assert.equal(r.status, 404);
+  });
+
   test('admin acessa tudo, incluindo configuração', async () => {
     await amb.criarUsuario({ email: 'admin@teste.com', papel: 'admin' });
     const cli = amb.cliente();

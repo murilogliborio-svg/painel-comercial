@@ -27,9 +27,11 @@ import {
 } from './auth/contexto.ts';
 import {
   criarLead, buscarLead, buscarLeadPorTelefone, listarLeads, atualizarLead,
-  listarMensagens, atualizarStatusEntrega,
+  excluirLead, listarMensagens, atualizarStatusEntrega,
 } from './domain/leads.ts';
-import { obterPersona, definirPersona, obterRegras, definirRegras } from './domain/config.ts';
+import {
+  obterPersona, definirPersona, obterRegras, definirRegras, obterQualificacao, definirQualificacao,
+} from './domain/config.ts';
 import { tratarMensagemRecebida, varrerLeadsDevidos } from './domain/mensagens.ts';
 import { janelaDeServicoAtiva } from './domain/regras.ts';
 import {
@@ -60,6 +62,14 @@ function str(v: unknown, campo: string, opts: { max?: number; min?: number; obri
   if (s.length < min) throw erro.requisicao(`Campo "${campo}" deve ter ao menos ${min} caractere(s).`);
   if (s.length > max) throw erro.requisicao(`Campo "${campo}" excede ${max} caracteres.`);
   return s;
+}
+
+function numero(v: unknown, campo: string, opts: { min?: number; max?: number } = {}): number {
+  const n = Number(v);
+  if (!Number.isFinite(n)) throw erro.requisicao(`Campo "${campo}" deve ser um número.`);
+  if (opts.min !== undefined && n < opts.min) throw erro.requisicao(`Campo "${campo}" deve ser ao menos ${opts.min}.`);
+  if (opts.max !== undefined && n > opts.max) throw erro.requisicao(`Campo "${campo}" deve ser no máximo ${opts.max}.`);
+  return n;
 }
 
 function umDe<T extends string>(v: unknown, campo: string, opcoes: readonly T[]): T {
@@ -374,6 +384,21 @@ export function montarApp(db: Db, cfg: Config, dirWeb: string): Aplicacao {
     return { status: 200, corpo: { ok: true } };
   });
 
+  /** Apaga o lead e toda a conversa dele — irreversível, por isso pede confirmação na tela. */
+  r.delete('/api/leads/:id', async (req): Promise<Resposta> => {
+    const a = exigirAuth(req);
+    const id = str(req.params['id'], 'id', { max: 40 });
+    const lead = await buscarLead(db, id);
+    if (!lead) throw erro.naoEncontrado('Lead não encontrado.');
+    await excluirLead(db, id);
+    await auditor({
+      acao: 'lead.excluido', userId: a.usuario.id, email: a.usuario.email,
+      entidade: 'lead', entidadeId: id, ip: req.ip, userAgent: req.userAgent,
+      detalhe: { nome: lead.nome, telefone: lead.telefone },
+    });
+    return { status: 200, corpo: { ok: true } };
+  });
+
   /** Mensagem escrita e enviada por um humano — sem passar pela I.A. nem pelas regras de cadência. */
   r.post('/api/leads/:id/mensagens', async (req): Promise<Resposta> => {
     const a = exigirAuth(req);
@@ -466,6 +491,25 @@ export function montarApp(db: Db, cfg: Config, dirWeb: string): Aplicacao {
     return { status: 200, corpo: { ok: true, regras } };
   });
 
+  r.get('/api/config/qualificacao', async (req): Promise<Resposta> => {
+    exigirAuth(req);
+    return { status: 200, corpo: { qualificacao: await obterQualificacao(db) } };
+  });
+
+  r.put('/api/config/qualificacao', async (req): Promise<Resposta> => {
+    const a = exigirPapel(req, 'admin');
+    const c = corpo(req);
+    const qualificacao = {
+      ativa: !!c['ativa'],
+      maxMensagens: numero(c['maxMensagens'], 'maxMensagens', { min: 1, max: 30 }),
+      objetivo: str(c['objetivo'], 'objetivo', { max: 1000 }),
+    };
+    await definirQualificacao(db, qualificacao, a.usuario.id);
+    await auditor({ acao: 'config.alterada', userId: a.usuario.id, email: a.usuario.email,
+      entidade: 'config', entidadeId: 'qualificacao', ip: req.ip, userAgent: req.userAgent });
+    return { status: 200, corpo: { ok: true } };
+  });
+
   // -------------------------------------------------------------------------
   // Administração de usuários
   // -------------------------------------------------------------------------
@@ -474,7 +518,7 @@ export function montarApp(db: Db, cfg: Config, dirWeb: string): Aplicacao {
     exigirPapel(req, 'admin');
     const linhas = await db.all(
       `SELECT id, email, nome, papel, ativo, trocar_senha, ultimo_login, bloqueado_ate, criado_em
-         FROM users ORDER BY papel, nome`,
+         FROM users WHERE id != 'sistema' ORDER BY papel, nome`,
     );
     return { status: 200, corpo: { usuarios: linhas } };
   });
@@ -563,21 +607,30 @@ export function montarApp(db: Db, cfg: Config, dirWeb: string): Aplicacao {
     }
 
     const mensagens = extrairMensagensInbound(req.corpo);
-    const regras = await obterRegras(db);
-    for (const m of mensagens) {
-      const lead = await buscarLeadPorTelefone(db, m.telefone);
-      if (!lead) {
-        // Mensagem de um número que não está na base: registra como lead
-        // novo, já em "respondeu", para nada se perder — mas sem automação
-        // (a fila de aquecimento é para leads que a equipe cadastrou).
-        const criado = await criarLead(db, {
-          nome: normalizarTelefone(m.telefone), telefone: m.telefone, origem: 'whatsapp_inbound',
-        }, 'sistema');
-        await atualizarLead(db, criado.id, { automacao_ativa: 0, estagio: 'respondeu' });
-        await tratarMensagemRecebida(db, auditor, criado.id, m.texto, regras, m.idExterno);
-        continue;
+    if (mensagens.length > 0) {
+      const regras = await obterRegras(db);
+      const qualificacao = await obterQualificacao(db);
+      const persona = await obterPersona(db);
+      for (const m of mensagens) {
+        let lead = await buscarLeadPorTelefone(db, m.telefone);
+        if (!lead) {
+          // Mensagem de um número que não está na base: alguém chamando a
+          // empresa do zero (ex.: pediu orçamento pelo número central) — cria
+          // o lead na hora. Fica de fora da automação de aquecimento frio
+          // (não faz sentido "aquecer" quem já chamou primeiro), mas pode
+          // entrar na qualificação por I.A. normalmente, já que essa fase é
+          // sempre reativa a uma mensagem do próprio lead.
+          lead = await criarLead(db, {
+            nome: normalizarTelefone(m.telefone), telefone: m.telefone, origem: 'whatsapp_inbound',
+          }, 'sistema');
+        }
+        await tratarMensagemRecebida(
+          db, auditor, lead, m.texto, regras, qualificacao, persona, cfg.ia,
+          { modo: cfg.whatsapp.modo, token: cfg.whatsapp.token, phoneNumberId: cfg.whatsapp.phoneNumberId,
+            verifyToken: cfg.whatsapp.verifyToken, apiVersion: cfg.whatsapp.apiVersion },
+          m.idExterno,
+        );
       }
-      await tratarMensagemRecebida(db, auditor, lead.id, m.texto, regras, m.idExterno);
     }
     return { status: 200, corpo: { ok: true, processadas: mensagens.length } };
   });

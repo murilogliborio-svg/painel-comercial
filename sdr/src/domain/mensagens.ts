@@ -7,7 +7,9 @@
 import type { Db } from '../db/index.ts';
 import { ulid } from '../lib/ids.ts';
 import type { Auditor } from '../lib/auditoria.ts';
-import { gerarMensagem, ErroIA, type PersonaConfig } from '../integracoes/ia.ts';
+import {
+  gerarMensagem, gerarRespostaQualificacao, ErroIA, type PersonaConfig,
+} from '../integracoes/ia.ts';
 import {
   enviar as enviarWhatsapp, enviarTemplate, type ConfigWhatsapp, type ResultadoEnvio,
 } from '../integracoes/whatsapp.ts';
@@ -15,10 +17,21 @@ import {
   leadElegivel, calcularProximaMensagemEm, objetivoDoPasso, nomeTemplateDoPasso,
   janelaDeServicoAtiva, contemOptOut, type RegrasEnvio,
 } from './regras.ts';
+import type { QualificacaoConfig } from './config.ts';
 import {
   listarLeadsDevidos, listarMensagens, avancarSequencia, marcarOptOut, registrarResposta,
-  contarEnviadasHoje, buscarLeadPorTelefone, type Lead,
+  avancarQualificacao, encerrarQualificacao, contarEnviadasHoje, buscarLeadPorTelefone, type Lead,
 } from './leads.ts';
+
+const AINDA_FRIO = new Set(['novo', 'aquecendo', 'aguardando_resposta']);
+
+async function historicoDoLead(db: Db, leadId: string) {
+  const bruto = await listarMensagens(db, leadId, 20);
+  return bruto.map((h) => ({
+    direcao: (h as { direcao: 'saida' | 'entrada' }).direcao,
+    texto: (h as { texto: string }).texto,
+  }));
+}
 
 export interface ConfigIA {
   apiKey: string | null;
@@ -92,11 +105,7 @@ export async function processarLead(
   let envio: ResultadoEnvio;
 
   if (janelaAberta) {
-    const historicoBruto = await listarMensagens(db, lead.id, 20);
-    const historico = historicoBruto.map((h) => ({
-      direcao: (h as { direcao: 'saida' | 'entrada' }).direcao,
-      texto: (h as { texto: string }).texto,
-    }));
+    const historico = await historicoDoLead(db, lead.id);
     try {
       texto = await gerarMensagem(
         {
@@ -173,30 +182,127 @@ export async function varrerLeadsDevidos(
 }
 
 /**
- * Trata uma mensagem recebida do lead: grava, detecta opt-out e, em
- * qualquer caso de resposta real, tira o lead da automação — a partir daqui
- * é conversa humana. Isso é o que torna "a I.A. envia sozinha" compatível
- * com "sempre humano": o robô cuida só do contato frio antes de existir
- * diálogo de verdade.
+ * Fase 2: o lead acabou de responder e a qualificação por I.A. está ativa
+ * para ele. Gera UMA resposta reativa, manda, e decide se encerra a fase
+ * (qualificação completa, teto de mensagens batido, erro) ou continua para
+ * a próxima resposta do lead. Nunca lança — qualquer erro encerra a
+ * qualificação em vez de deixar o lead preso num estado quebrado.
+ */
+async function processarQualificacao(
+  db: Db,
+  lead: Lead,
+  persona: PersonaConfig,
+  regras: RegrasEnvio,
+  qualificacao: QualificacaoConfig,
+  cfgIa: ConfigIA,
+  cfgWhatsapp: ConfigWhatsapp,
+  auditor: Auditor,
+  agora: Date,
+): Promise<void> {
+  const totalHoje = await contarEnviadasHoje(db, agora);
+  if (totalHoje >= regras.limiteMsgsPorDia) {
+    await encerrarQualificacao(db, lead.id, { estagio: 'respondeu' });
+    return;
+  }
+
+  const historico = await historicoDoLead(db, lead.id);
+  let resposta;
+  try {
+    resposta = await gerarRespostaQualificacao(
+      {
+        persona,
+        lead: { nome: lead.nome, origem: lead.origem, contexto: lead.contexto },
+        objetivo: qualificacao.objetivo,
+        historico,
+      },
+      cfgIa,
+    );
+  } catch (e) {
+    const motivo = e instanceof ErroIA ? e.codigo : 'erro_ia_desconhecido';
+    await auditor({
+      acao: 'mensagem.falhou', entidade: 'lead', entidadeId: lead.id,
+      detalhe: { etapa: 'qualificacao_geracao', motivo, erro: String(e) },
+    });
+    await encerrarQualificacao(db, lead.id, { estagio: 'respondeu' });
+    return;
+  }
+
+  const envio = await enviarWhatsapp(cfgWhatsapp, lead.telefone, resposta.mensagem);
+  if (!envio.ok) {
+    await registrarMensagem(db, lead.id, 'saida', resposta.mensagem, 'falhou', {
+      geradaPorIa: true, erro: envio.erro,
+    });
+    await auditor({
+      acao: 'mensagem.falhou', entidade: 'lead', entidadeId: lead.id,
+      detalhe: { etapa: 'qualificacao_envio', erro: envio.erro },
+    });
+    await encerrarQualificacao(db, lead.id, { estagio: 'respondeu' });
+    return;
+  }
+
+  await registrarMensagem(db, lead.id, 'saida', resposta.mensagem, envio.simulado ? 'simulada' : 'enviada', {
+    geradaPorIa: true, idExterno: envio.idExterno,
+  });
+
+  const novoContador = lead.qualificacao_mensagens + 1;
+  const capou = novoContador >= qualificacao.maxMensagens;
+  if (resposta.qualificacaoCompleta || capou) {
+    await encerrarQualificacao(db, lead.id, {
+      estagio: resposta.qualificacaoCompleta ? 'quente' : 'respondeu',
+      resumo: resposta.resumo,
+    });
+    await auditor({
+      acao: 'mensagem.enviada', entidade: 'lead', entidadeId: lead.id,
+      detalhe: { qualificacao: true, encerrada: true, motivo: resposta.qualificacaoCompleta ? 'completa' : 'teto_atingido' },
+    });
+  } else {
+    await avancarQualificacao(db, lead.id, novoContador);
+    await auditor({
+      acao: 'mensagem.enviada', entidade: 'lead', entidadeId: lead.id,
+      detalhe: { qualificacao: true, encerrada: false, passo: novoContador },
+    });
+  }
+}
+
+/**
+ * Trata uma mensagem recebida do lead: grava, detecta opt-out e, na
+ * primeira resposta real, tira o lead da automação de aquecimento frio.
+ * Se a qualificação por I.A. estiver ligada, ela assume a partir daqui —
+ * reativamente, uma resposta por vez — até decidir que já sabe o
+ * suficiente (ou bater o teto de segurança); só então vira 100% humano.
+ * Se estiver desligada, "sempre humano" continua valendo já na primeira
+ * resposta, como antes.
  */
 export async function tratarMensagemRecebida(
   db: Db,
   auditor: Auditor,
-  leadId: string,
+  lead: Lead,
   texto: string,
   regras: RegrasEnvio,
+  qualificacao: QualificacaoConfig,
+  persona: PersonaConfig,
+  cfgIa: ConfigIA,
+  cfgWhatsapp: ConfigWhatsapp,
   idExterno: string,
+  agora: Date = new Date(),
 ): Promise<void> {
-  await registrarMensagem(db, leadId, 'entrada', texto, 'recebida', { idExterno });
+  await registrarMensagem(db, lead.id, 'entrada', texto, 'recebida', { idExterno });
 
   if (contemOptOut(texto, regras.palavrasOptOut)) {
-    await marcarOptOut(db, leadId);
-    await auditor({ acao: 'lead.opt_out', entidade: 'lead', entidadeId: leadId, detalhe: { texto } });
+    await marcarOptOut(db, lead.id);
+    await auditor({ acao: 'lead.opt_out', entidade: 'lead', entidadeId: lead.id, detalhe: { texto } });
     return;
   }
 
-  await registrarResposta(db, leadId);
-  await auditor({ acao: 'mensagem.recebida', entidade: 'lead', entidadeId: leadId });
+  const primeiraResposta = AINDA_FRIO.has(lead.estagio);
+  await registrarResposta(db, lead.id);
+  await auditor({ acao: 'mensagem.recebida', entidade: 'lead', entidadeId: lead.id });
+
+  const podeQualificar = qualificacao.ativa && !!lead.automacao_ativa
+    && (primeiraResposta || !!lead.qualificacao_ativa);
+  if (!podeQualificar) return;
+
+  await processarQualificacao(db, lead, persona, regras, qualificacao, cfgIa, cfgWhatsapp, auditor, agora);
 }
 
 export { buscarLeadPorTelefone };

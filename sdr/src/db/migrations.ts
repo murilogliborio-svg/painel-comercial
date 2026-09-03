@@ -128,9 +128,37 @@ ALTER TABLE mensagens ADD COLUMN entrega_status TEXT NULL
 CREATE INDEX idx_mensagens_externa ON mensagens(mensagem_externa_id);
 `;
 
+const DDL_0003 = `
+-- Qualificação por I.A.: depois que o lead responde pela primeira vez, a
+-- I.A. pode continuar a conversa (reativamente, respondendo ao que o lead
+-- escreveu) para levantar informação de qualificação, até decidir que já
+-- sabe o suficiente ou até bater o teto de mensagens — aí para de vez e
+-- alguém do time assume. qualificacao_ativa é o que liga/desliga esse modo
+-- por lead; some assim que um humano manda mensagem manual (mesmo mecanismo
+-- que já desliga automacao_ativa nesse caso).
+ALTER TABLE leads ADD COLUMN qualificacao_ativa INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE leads ADD COLUMN qualificacao_mensagens INTEGER NOT NULL DEFAULT 0;
+`;
+
+const DDL_0004 = `
+-- leads.criado_por referencia users(id) e é NOT NULL, mas o webhook cria
+-- lead automaticamente pra número desconhecido (alguém chamando do zero)
+-- sem nenhum usuário humano envolvido — precisa de uma conta "dona" desse
+-- created_por. 'sistema' fica com ativo=0 (nunca consegue logar — o
+-- middleware de auth barra por 'ativo' antes de olhar a senha) e é
+-- filtrado explicitamente da tela de Usuários (ver GET /api/admin/usuarios).
+INSERT INTO users (id, email, nome, papel, senha_hash, trocar_senha, ativo, criado_em, atualizado_em)
+VALUES (
+  'sistema', 'sistema@interno.invalido', 'Sistema (automático)', 'admin',
+  'nao-faz-login-conta-inativa', 0, 0, datetime('now'), datetime('now')
+);
+`;
+
 export const MIGRATIONS: Migration[] = [
   { id: '0001_schema_inicial', sqlite: DDL },
   { id: '0002_status_entrega', sqlite: DDL_0002 },
+  { id: '0003_qualificacao_ia', sqlite: DDL_0003 },
+  { id: '0004_usuario_sistema', sqlite: DDL_0004 },
 ];
 
 export async function migrate(db: Db, log: (m: string) => void = () => {}): Promise<string[]> {

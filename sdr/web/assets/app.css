@@ -247,6 +247,12 @@ td.nome { font-weight: 600; text-align: left; }
 .vazio { padding: 26px; text-align: center; color: var(--muted); font-size: 12.5px; }
 .carregando { padding: 26px; text-align: center; color: var(--muted); font-size: 12.5px; }
 
+.campo-check {
+  display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 13px;
+  margin: 14px 0 5px; cursor: pointer;
+}
+.campo-check input { width: auto; margin: 0; }
+
 .linha-form { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; }
 .campo { flex: 1 1 180px; }
 .campo label { margin-top: 0; }

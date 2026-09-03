@@ -19,6 +19,8 @@ export interface Lead {
   responsavel_id: string | null;
   opt_out: number;
   automacao_ativa: number;
+  qualificacao_ativa: number;
+  qualificacao_mensagens: number;
   sequencia_passo: number;
   mensagens_sem_resposta: number;
   proxima_mensagem_em: string | null;
@@ -118,11 +120,48 @@ export async function atualizarLead(
   ]);
 }
 
+/** Apaga o lead e todas as mensagens dele (ON DELETE CASCADE) — irreversível. */
+export async function excluirLead(db: Db, id: string): Promise<void> {
+  await db.run('DELETE FROM leads WHERE id = ?', [id]);
+}
+
 export async function marcarOptOut(db: Db, id: string): Promise<void> {
   await db.run(
     `UPDATE leads SET opt_out = 1, automacao_ativa = 0, atualizado_em = ? WHERE id = ?`,
     [new Date().toISOString(), id],
   );
+}
+
+/** Registra que a I.A. mandou mais uma mensagem de qualificação, sem encerrar a fase ainda. */
+export async function avancarQualificacao(db: Db, id: string, novoContador: number): Promise<void> {
+  await db.run(
+    `UPDATE leads SET qualificacao_ativa = 1, qualificacao_mensagens = ?, atualizado_em = ? WHERE id = ?`,
+    [novoContador, new Date().toISOString(), id],
+  );
+}
+
+/**
+ * Encerra a fase de qualificação (completa, capada no teto de mensagens, ou
+ * interrompida por erro) — a partir daqui é 100% humano de novo. Quando há
+ * resumo da I.A., anexa ao contexto do lead (não sobrescreve o que já tinha).
+ */
+export async function encerrarQualificacao(
+  db: Db, id: string, opts: { estagio: string; resumo?: string | null },
+): Promise<void> {
+  const agora = new Date().toISOString();
+  if (opts.resumo) {
+    const atual = await buscarLead(db, id);
+    const contexto = [atual?.contexto, `[Resumo da I.A.]\n${opts.resumo}`].filter(Boolean).join('\n\n');
+    await db.run(
+      `UPDATE leads SET qualificacao_ativa = 0, estagio = ?, contexto = ?, atualizado_em = ? WHERE id = ?`,
+      [opts.estagio, contexto, agora, id],
+    );
+  } else {
+    await db.run(
+      `UPDATE leads SET qualificacao_ativa = 0, estagio = ?, atualizado_em = ? WHERE id = ?`,
+      [opts.estagio, agora, id],
+    );
+  }
 }
 
 export async function registrarResposta(db: Db, id: string): Promise<void> {

@@ -128,3 +128,143 @@ export async function gerarMensagem(
   if (!texto) throw new ErroIA('resposta_vazia', 'A I.A. retornou uma resposta vazia.');
   return texto;
 }
+
+/**
+ * Fase 2 do funil: o lead já respondeu, e a I.A. continua a conversa
+ * (reativamente, uma resposta por vez) para levantar as informações que o
+ * gestor definiu como objetivo de qualificação — até decidir que já sabe o
+ * suficiente para um vendedor humano assumir. Quem impõe o limite de
+ * segurança (teto de mensagens) é quem chama isso, não este módulo.
+ *
+ * Usa tool-use forçado (tool_choice) em vez de pedir JSON solto no texto:
+ * é a forma confiável de obter uma resposta estruturada da Messages API,
+ * sem depender de parsear texto livre que a I.A. pode formatar diferente.
+ */
+export interface PedidoQualificacao {
+  persona: PersonaConfig;
+  lead: ContextoLead;
+  objetivo: string;
+  historico: ItemHistorico[];
+}
+
+export interface RespostaQualificacao {
+  mensagem: string;
+  qualificacaoCompleta: boolean;
+  resumo: string | null;
+}
+
+const FERRAMENTA_QUALIFICACAO = {
+  name: 'responder_lead',
+  description: 'Registra a próxima mensagem a enviar ao lead e se a qualificação já está completa.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      mensagem: {
+        type: 'string',
+        description: 'A próxima mensagem de WhatsApp para o lead — curta, natural, uma pergunta por vez.',
+      },
+      qualificacao_completa: {
+        type: 'boolean',
+        description:
+          'true se já se sabe o suficiente sobre o que o lead quer (conforme o objetivo de qualificação) '
+          + 'para um vendedor humano assumir a conversa agora, ou se o lead já pediu claramente para falar '
+          + 'com uma pessoa/saber preço/agendar. false se ainda vale a pena perguntar mais uma coisa.',
+      },
+      resumo: {
+        type: 'string',
+        description:
+          'Resumo curto (2-4 linhas) do que foi levantado até agora, para o vendedor ler rápido ao assumir. '
+          + 'Preencha SOMENTE quando qualificacao_completa for true.',
+      },
+    },
+    required: ['mensagem', 'qualificacao_completa'],
+  },
+} as const;
+
+function montarSystemPromptQualificacao(persona: PersonaConfig, objetivo: string): string {
+  return [
+    `Você é ${persona.nomeAtendente}, do time comercial da ${persona.nomeEmpresa}, conversando por WhatsApp `
+      + 'com um lead que acabou de responder. Seu trabalho agora não é mais "chamar atenção" — é ter uma '
+      + 'conversa de verdade e entender o que a pessoa precisa, para o time comercial assumir já sabendo o essencial.',
+    `Tom desejado: ${persona.tom}.`,
+    persona.diretrizes ? `Diretrizes adicionais definidas pelo gestor: ${persona.diretrizes}` : '',
+    '',
+    `O QUE VOCÊ PRECISA DESCOBRIR: ${objetivo}`,
+    '',
+    'REGRAS FIXAS, NUNCA QUEBRE:',
+    '- Uma pergunta por vez — nunca uma lista de perguntas na mesma mensagem.',
+    '- Português do Brasil, curto (1 a 3 frases), como quem digita no WhatsApp.',
+    '- Nunca use "prezado(a)", "vimos por meio desta", "informamos que" ou qualquer fórmula de robô/call center.',
+    '- Não invente promessa, preço, condição ou prazo que não esteja no contexto fornecido.',
+    '- Se o lead pedir para falar com uma pessoa, saber preço, ou fechar algo — marque qualificação completa '
+      + 'na hora, mesmo sem ter perguntado tudo: não segure a pessoa que já quer avançar.',
+    '- Se o lead responder algo que não tem a ver (ou pedir pra parar), marque qualificação completa também: '
+      + 'não insista sozinho, deixe para o humano decidir.',
+    '- Se for perguntado diretamente se quem escreve é um robô ou I.A., a orientação da empresa é responder '
+      + 'com honestidade; não inclua negação disso na mensagem.',
+    '- Sempre use a ferramenta responder_lead — nunca responda em texto livre fora dela.',
+  ].filter(Boolean).join('\n');
+}
+
+function montarMensagemUsuarioQualificacao(lead: ContextoLead, historico: ItemHistorico[]): string {
+  const partes = [
+    `Lead: ${lead.nome}`,
+    lead.origem ? `Origem do contato: ${lead.origem}` : '',
+    lead.contexto ? `Contexto/observações sobre o lead: ${lead.contexto}` : '',
+    '',
+    'Histórico da conversa (mais antiga primeiro):',
+  ];
+  for (const h of historico.slice(-20)) {
+    partes.push(`${h.direcao === 'saida' ? 'Nós' : 'Lead'}: ${h.texto}`);
+  }
+  partes.push('', 'Responda ao lead agora, usando a ferramenta responder_lead.');
+  return partes.filter(Boolean).join('\n');
+}
+
+export async function gerarRespostaQualificacao(
+  opts: PedidoQualificacao,
+  cfg: { apiKey: string | null; modelo: string; maxTokens: number },
+): Promise<RespostaQualificacao> {
+  if (!cfg.apiKey) {
+    throw new ErroIA('sem_chave', 'ANTHROPIC_API_KEY não configurada: a geração automática está desligada.');
+  }
+
+  const resp = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      'x-api-key': cfg.apiKey,
+      'anthropic-version': '2023-06-01',
+    },
+    body: JSON.stringify({
+      model: cfg.modelo,
+      max_tokens: cfg.maxTokens,
+      system: montarSystemPromptQualificacao(opts.persona, opts.objetivo),
+      messages: [
+        { role: 'user', content: montarMensagemUsuarioQualificacao(opts.lead, opts.historico) },
+      ],
+      tools: [FERRAMENTA_QUALIFICACAO],
+      tool_choice: { type: 'tool', name: FERRAMENTA_QUALIFICACAO.name },
+    }),
+  }).catch((e: unknown) => {
+    throw new ErroIA('falha_api', `Falha de rede ao chamar a API de I.A.: ${String(e)}`);
+  });
+
+  if (!resp.ok) {
+    const corpo = await resp.text().catch(() => '');
+    throw new ErroIA('falha_api', `API de I.A. respondeu ${resp.status}: ${corpo.slice(0, 300)}`);
+  }
+
+  const json = await resp.json() as {
+    content?: Array<{ type: string; input?: unknown }>;
+  };
+  const chamada = json.content?.find((b) => b.type === 'tool_use');
+  const entrada = chamada?.input as { mensagem?: string; qualificacao_completa?: boolean; resumo?: string } | undefined;
+  if (!entrada?.mensagem) throw new ErroIA('resposta_vazia', 'A I.A. não devolveu uma mensagem válida.');
+
+  return {
+    mensagem: entrada.mensagem.trim(),
+    qualificacaoCompleta: !!entrada.qualificacao_completa,
+    resumo: entrada.resumo?.trim() || null,
+  };
+}

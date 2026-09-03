@@ -94,6 +94,7 @@
             <div class="mt-12 flex-row-gap8-wrap">
               <button class="btn btn-secundario btn-mini" id="btn-salvar-lead">Salvar</button>
               <button class="btn btn-secundario btn-mini" id="btn-toggle-automacao">—</button>
+              <button class="btn btn-perigo btn-mini" id="btn-excluir-lead">Excluir lead</button>
             </div>
             <dl class="chave-valor mt-14">
               <dt>Origem</dt><dd id="lead-origem">—</dd>
@@ -166,6 +167,27 @@
           <button class="btn btn-largo mt-16" type="submit">Salvar regras</button>
         </form>
         <button class="btn btn-secundario btn-largo mt-10" id="btn-varredura">Disparar varredura agora</button>
+      </div>
+
+      <div class="cartao">
+        <h3>Qualificação por I.A. após resposta</h3>
+        <p class="lede">
+          Quando o lead responde pela primeira vez, a I.A. pode continuar a conversa sozinha (reativamente,
+          uma mensagem por vez) para levantar as informações abaixo, até decidir que já sabe o suficiente ou
+          bater o teto de mensagens — só então passa para um humano. Desligado, vale o comportamento antigo:
+          humano assume desde a primeira resposta.
+        </p>
+        <form id="form-qualificacao">
+          <label class="campo-check">
+            <input type="checkbox" id="q-ativa">
+            Ativar qualificação por I.A.
+          </label>
+          <label for="q-max">Teto de mensagens da I.A. nessa fase (segurança)</label>
+          <input type="number" id="q-max" min="1" max="30">
+          <label for="q-objetivo">O que a I.A. deve tentar descobrir</label>
+          <textarea id="q-objetivo" placeholder="Ex.: número de convidados, data, local, estilo da festa"></textarea>
+          <button class="btn btn-largo mt-16" type="submit">Salvar qualificação</button>
+        </form>
       </div>
     </div>
   </section>
