@@ -231,7 +231,10 @@ async function abrirLead(id) {
     const selo = m.gerada_por_ia ? '<span class="selo-ia">Gerada por I.A.</span>' : '';
     div.innerHTML = `${selo}<span class="texto"></span><span class="quando"></span>`;
     div.querySelector('.texto').textContent = m.texto;
-    div.querySelector('.quando').textContent = `${fmtData(m.criado_em)}${m.status === 'simulada' ? ' · simulada' : ''}${m.status === 'falhou' ? ' · falhou' : ''}`;
+    const sufixo = m.status === 'simulada' ? ' · simulada'
+      : m.status === 'falhou' ? ` · falhou${m.erro ? ': ' + m.erro : ''}`
+      : '';
+    div.querySelector('.quando').textContent = `${fmtData(m.criado_em)}${sufixo}`;
     msgs.appendChild(div);
   }
   msgs.scrollTop = msgs.scrollHeight;

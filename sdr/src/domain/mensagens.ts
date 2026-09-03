@@ -114,6 +114,10 @@ export async function processarLead(
       acao: 'mensagem.falhou', entidade: 'lead', entidadeId: lead.id,
       detalhe: { etapa: 'envio', erro: envio.erro },
     });
+    console.error(JSON.stringify({
+      ts: agora.toISOString(), nivel: 'erro', msg: 'falha ao enviar mensagem via whatsapp (varredura)',
+      leadId: lead.id, erro: envio.erro ?? 'desconhecida',
+    }));
     return { leadId: lead.id, enviado: false, motivo: `falha_envio:${envio.erro ?? 'desconhecida'}` };
   }
 

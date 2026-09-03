@@ -396,8 +396,14 @@ export function montarApp(db: Db, cfg: Config, dirWeb: string): Aplicacao {
     await atualizarLead(db, id, { automacao_ativa: 0 });
     await auditor({ acao: 'mensagem.enviada', userId: a.usuario.id, email: a.usuario.email,
       entidade: 'lead', entidadeId: id, sucesso: resultado.ok, ip: req.ip, userAgent: req.userAgent,
-      detalhe: { manual: true, simulado: resultado.simulado } });
-    if (!resultado.ok) throw erro.requisicao(`Falha ao enviar: ${resultado.erro ?? 'desconhecida'}`);
+      detalhe: { manual: true, simulado: resultado.simulado, erro: resultado.erro ?? null } });
+    if (!resultado.ok) {
+      console.error(JSON.stringify({
+        ts: agoraIso, nivel: 'erro', msg: 'falha ao enviar mensagem via whatsapp',
+        leadId: id, erro: resultado.erro ?? 'desconhecida',
+      }));
+      throw erro.requisicao(`Falha ao enviar: ${resultado.erro ?? 'desconhecida'}`);
+    }
     return { status: 201, corpo: { ok: true, simulado: resultado.simulado } };
   });
 
