@@ -149,3 +149,39 @@ export function extrairMensagensInbound(payload: unknown): MensagemInbound[] {
   }
   return out;
 }
+
+export interface StatusMensagem {
+  idExterno: string;
+  status: 'enviada' | 'entregue' | 'lida' | 'falhou';
+}
+
+const MAPA_STATUS: Record<string, StatusMensagem['status']> = {
+  sent: 'enviada', delivered: 'entregue', read: 'lida', failed: 'falhou',
+};
+
+/**
+ * Extrai atualizações de status de entrega (sent/delivered/read/failed) do
+ * mesmo payload de webhook — vêm em `statuses`, separado de `messages`.
+ * É o "✓✓ azul" de verdade: sem isso, "enviada" só significa que a Cloud
+ * API aceitou a chamada, não que o cliente recebeu ou leu.
+ */
+export function extrairStatusMensagens(payload: unknown): StatusMensagem[] {
+  const out: StatusMensagem[] = [];
+  const entradas = (payload as { entry?: unknown[] })?.entry;
+  if (!Array.isArray(entradas)) return out;
+
+  for (const entrada of entradas) {
+    const mudancas = (entrada as { changes?: unknown[] })?.changes;
+    if (!Array.isArray(mudancas)) continue;
+    for (const mudanca of mudancas) {
+      const statuses = (mudanca as { value?: { statuses?: unknown[] } })?.value?.statuses;
+      if (!Array.isArray(statuses)) continue;
+      for (const s of statuses) {
+        const st = s as { id?: string; status?: string };
+        const mapeado = st.status ? MAPA_STATUS[st.status] : undefined;
+        if (st.id && mapeado) out.push({ idExterno: st.id, status: mapeado });
+      }
+    }
+  }
+  return out;
+}

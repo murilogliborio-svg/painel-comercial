@@ -42,16 +42,16 @@ export interface Cliente {
   req(metodo: string, caminho: string, corpo?: unknown, extras?: Record<string, string>): Promise<RespostaTeste>;
 }
 
-let portaSeq = 8700;
-
 export async function subirAmbiente(): Promise<Ambiente> {
-  const porta = portaSeq++;
+  // Porta 0 = o SO escolhe uma livre. Um contador fixo (ex.: 8700++) não é
+  // seguro aqui: arquivos de teste diferentes rodam em processos separados,
+  // cada um com seu próprio módulo (e portanto seu próprio contador do
+  // zero), então dois arquivos concorrentes podem tentar a mesma porta.
   const cfg = carregarConfig({
     NODE_ENV: 'teste',
     DATABASE_URL: 'sqlite::memory:',
     SECRET_KEY: 'chave-de-teste-com-mais-de-32-caracteres-ok',
-    APP_URL: `http://localhost:${porta}`,
-    PORT: String(porta),
+    APP_URL: 'http://localhost:1',
   } as NodeJS.ProcessEnv);
 
   const db = await connect(cfg.databaseUrl);
@@ -66,8 +66,10 @@ export async function subirAmbiente(): Promise<Ambiente> {
     maxUploadBytes: cfg.maxJsonBytes,
     origemPublica: cfg.origemPublica,
   });
-  await new Promise<void>((r) => servidor.listen(porta, '127.0.0.1', r));
+  await new Promise<void>((r) => servidor.listen(0, '127.0.0.1', r));
+  const porta = (servidor.address() as { port: number }).port;
   const base = `http://localhost:${porta}`;
+  cfg.origemPublica = base;
 
   async function criarUsuario(o: { email: string; nome?: string; papel: Papel; ativo?: boolean }): Promise<string> {
     const id = ulid();

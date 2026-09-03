@@ -119,8 +119,18 @@ CREATE TABLE mensagens (
 CREATE INDEX idx_mensagens_lead ON mensagens(lead_id, criado_em);
 `;
 
+const DDL_0002 = `
+-- Status de entrega de verdade (a Meta manda um webhook separado por
+-- mensagem enviada: sent -> delivered -> read). Sem isso o painel só sabia
+-- "chamou a API com sucesso", nunca se o cliente recebeu ou leu de fato.
+ALTER TABLE mensagens ADD COLUMN entrega_status TEXT NULL
+  CHECK (entrega_status IS NULL OR entrega_status IN ('enviada','entregue','lida','falhou'));
+CREATE INDEX idx_mensagens_externa ON mensagens(mensagem_externa_id);
+`;
+
 export const MIGRATIONS: Migration[] = [
   { id: '0001_schema_inicial', sqlite: DDL },
+  { id: '0002_status_entrega', sqlite: DDL_0002 },
 ];
 
 export async function migrate(db: Db, log: (m: string) => void = () => {}): Promise<string[]> {

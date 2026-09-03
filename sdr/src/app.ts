@@ -27,13 +27,14 @@ import {
 } from './auth/contexto.ts';
 import {
   criarLead, buscarLead, buscarLeadPorTelefone, listarLeads, atualizarLead,
-  listarMensagens,
+  listarMensagens, atualizarStatusEntrega,
 } from './domain/leads.ts';
 import { obterPersona, definirPersona, obterRegras, definirRegras } from './domain/config.ts';
 import { tratarMensagemRecebida, varrerLeadsDevidos } from './domain/mensagens.ts';
 import { janelaDeServicoAtiva } from './domain/regras.ts';
 import {
-  verificarWebhook, extrairMensagensInbound, normalizarTelefone, enviar as enviarWhatsapp,
+  verificarWebhook, extrairMensagensInbound, extrairStatusMensagens, normalizarTelefone,
+  enviar as enviarWhatsapp,
 } from './integracoes/whatsapp.ts';
 
 const METODOS_SEGUROS = new Set(['GET', 'HEAD', 'OPTIONS']);
@@ -401,10 +402,13 @@ export function montarApp(db: Db, cfg: Config, dirWeb: string): Aplicacao {
     );
     const agoraIso = agora();
     await db.run(
-      `INSERT INTO mensagens (id, lead_id, direcao, canal, texto, gerada_por_ia, status, erro, criado_por, criado_em, enviada_em)
-       VALUES (?, ?, 'saida', 'whatsapp', ?, 0, ?, ?, ?, ?, ?)`,
+      `INSERT INTO mensagens
+         (id, lead_id, direcao, canal, texto, gerada_por_ia, status, erro,
+          mensagem_externa_id, criado_por, criado_em, enviada_em)
+       VALUES (?, ?, 'saida', 'whatsapp', ?, 0, ?, ?, ?, ?, ?, ?)`,
       [ulid(), id, texto, resultado.ok ? (resultado.simulado ? 'simulada' : 'enviada') : 'falhou',
-       resultado.erro ?? null, a.usuario.id, agoraIso, resultado.ok ? agoraIso : null],
+       resultado.erro ?? null, resultado.idExterno ?? null, a.usuario.id, agoraIso,
+       resultado.ok ? agoraIso : null],
     );
     // Mensagem humana pausa a cadência automática: quem está no controle agora é a pessoa.
     await atualizarLead(db, id, { automacao_ativa: 0 });
@@ -553,6 +557,11 @@ export function montarApp(db: Db, cfg: Config, dirWeb: string): Aplicacao {
   });
 
   r.post('/api/whatsapp/webhook', async (req): Promise<Resposta> => {
+    const statuses = extrairStatusMensagens(req.corpo);
+    for (const s of statuses) {
+      await atualizarStatusEntrega(db, s.idExterno, s.status);
+    }
+
     const mensagens = extrairMensagensInbound(req.corpo);
     const regras = await obterRegras(db);
     for (const m of mensagens) {

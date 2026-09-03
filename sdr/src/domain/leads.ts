@@ -81,8 +81,13 @@ export async function listarLeads(db: Db, filtro: FiltroLeads = {}): Promise<Lea
     params.push(`%${filtro.busca}%`, `%${filtro.busca}%`);
   }
   const clausula = onde.length ? `WHERE ${onde.join(' AND ')}` : '';
-  return db.all<Lead>(
-    `SELECT * FROM leads ${clausula} ORDER BY atualizado_em DESC LIMIT 500`,
+  // Prévia da última mensagem (texto + direção) pra lista de conversas
+  // parecer lista de conversas de verdade, não só um cadastro de contatos.
+  return db.all<Lead & { ultima_mensagem_texto: string | null; ultima_mensagem_direcao: string | null }>(
+    `SELECT leads.*,
+            (SELECT texto FROM mensagens m WHERE m.lead_id = leads.id ORDER BY m.criado_em DESC LIMIT 1) AS ultima_mensagem_texto,
+            (SELECT direcao FROM mensagens m WHERE m.lead_id = leads.id ORDER BY m.criado_em DESC LIMIT 1) AS ultima_mensagem_direcao
+       FROM leads ${clausula} ORDER BY atualizado_em DESC LIMIT 500`,
     params,
   );
 }
@@ -149,10 +154,31 @@ export async function avancarSequencia(
 
 export async function listarMensagens(db: Db, leadId: string, limite = 200) {
   return db.all(
-    `SELECT id, direcao, canal, texto, gerada_por_ia, status, erro, criado_em, enviada_em
+    `SELECT id, direcao, canal, texto, gerada_por_ia, status, erro, entrega_status, criado_em, enviada_em
        FROM mensagens WHERE lead_id = ? ORDER BY criado_em ASC LIMIT ?`,
     [leadId, limite],
   );
+}
+
+/**
+ * Aplica uma atualização de status de entrega (webhook `statuses` da Meta)
+ * na mensagem de saída correspondente. "read" nunca regride pra "delivered"
+ * chegando fora de ordem — a Meta pode reenviar/atrasar eventos.
+ */
+export async function atualizarStatusEntrega(
+  db: Db,
+  idExterno: string,
+  status: 'enviada' | 'entregue' | 'lida' | 'falhou',
+): Promise<void> {
+  const ORDEM = { enviada: 0, entregue: 1, lida: 2, falhou: 0 };
+  const atual = await db.get<{ id: string; entrega_status: string | null }>(
+    'SELECT id, entrega_status FROM mensagens WHERE mensagem_externa_id = ? AND direcao = ?',
+    [idExterno, 'saida'],
+  );
+  if (!atual) return;
+  const atualOrdem = atual.entrega_status ? ORDEM[atual.entrega_status as keyof typeof ORDEM] ?? -1 : -1;
+  if (status !== 'falhou' && atualOrdem >= ORDEM[status]) return;
+  await db.run('UPDATE mensagens SET entrega_status = ? WHERE id = ?', [status, atual.id]);
 }
 
 export async function contarEnviadasHoje(db: Db, agora: Date): Promise<number> {
