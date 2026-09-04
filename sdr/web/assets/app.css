@@ -179,7 +179,7 @@ tbody tr:hover { background: color-mix(in srgb, var(--s1) 6%, transparent); }
 td.nome { font-weight: 600; text-align: left; }
 .rolagem { overflow-x: auto; }
 .detalhe-auditoria {
-  max-width: 320px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  max-width: 520px; white-space: normal; word-break: break-word;
   text-align: left; font-family: ui-monospace, monospace; font-size: 11.5px; color: var(--ink2);
 }
 
