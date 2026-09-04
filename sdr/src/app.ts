@@ -724,6 +724,7 @@ export function montarApp(db: Db, cfg: Config, dirWeb: string): Aplicacao {
   r.get('/', () => servir('login.html'));
   r.get('/login', () => servir('login.html'));
   r.get('/painel', () => servir('app.html'));
+  r.get('/privacidade', () => servir('privacidade.html'));
   r.get('/favicon.ico', () => servir('favicon.svg'));
   r.get('/assets/:arquivo', (req) => servir(join('assets', req.params['arquivo']!)));
 
