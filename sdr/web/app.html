@@ -48,6 +48,12 @@
           <option value="pausado">Pausado</option>
         </select>
       </div>
+      <div class="campo">
+        <label for="filtro-responsavel">Responsável</label>
+        <select id="filtro-responsavel">
+          <option value="">Todos</option>
+        </select>
+      </div>
       <button class="btn btn-secundario" id="btn-importar-leads">Importar planilha</button>
       <button class="btn" id="btn-novo-lead">+ Novo lead</button>
     </div>
@@ -85,6 +91,12 @@
                   <option value="convertido">Convertido</option>
                   <option value="perdido">Perdido</option>
                   <option value="pausado">Pausado</option>
+                </select>
+              </div>
+              <div class="campo campo-160">
+                <label for="lead-responsavel">Responsável</label>
+                <select id="lead-responsavel">
+                  <option value="">Sem responsável</option>
                 </select>
               </div>
               <div class="campo campo-220">
@@ -238,6 +250,10 @@
       <input type="email" id="l-email">
       <label for="l-origem">Origem (opcional)</label>
       <input type="text" id="l-origem" placeholder="Ex.: site, indicação, feira">
+      <label for="l-responsavel">Responsável (opcional)</label>
+      <select id="l-responsavel">
+        <option value="">Sem responsável</option>
+      </select>
       <label for="l-contexto">Contexto para a I.A. (opcional)</label>
       <textarea id="l-contexto"></textarea>
       <div class="acoes">
@@ -256,6 +272,10 @@
       são opcionais. A primeira linha precisa ser o cabeçalho. Quem já está cadastrado (mesmo telefone) é
       pulado, não sobrescrito.
     </p>
+    <label for="imp-responsavel">Atribuir a (opcional)</label>
+    <select id="imp-responsavel">
+      <option value="">Sem responsável definido</option>
+    </select>
     <label for="imp-arquivo">Arquivo CSV</label>
     <input type="file" id="imp-arquivo" accept=".csv,text/csv">
     <div id="imp-resultado" class="escondido mt-14"></div>

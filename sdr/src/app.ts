@@ -314,6 +314,17 @@ export function montarApp(db: Db, cfg: Config, dirWeb: string): Aplicacao {
   // Leads
   // -------------------------------------------------------------------------
 
+  // Lista leve de usuários (id, nome, papel) para popular seletores de
+  // responsável — qualquer um autenticado pode ver, ao contrário da rota de
+  // administração completa, que exige admin.
+  r.get('/api/usuarios', async (req): Promise<Resposta> => {
+    exigirAuth(req);
+    const linhas = await db.all(
+      `SELECT id, nome, papel FROM users WHERE id != 'sistema' AND ativo = 1 ORDER BY nome`,
+    );
+    return { status: 200, corpo: { usuarios: linhas } };
+  });
+
   r.get('/api/leads', async (req): Promise<Resposta> => {
     exigirAuth(req);
     const estagio = req.query.get('estagio');
@@ -359,7 +370,9 @@ export function montarApp(db: Db, cfg: Config, dirWeb: string): Aplicacao {
    */
   r.post('/api/leads/importar', async (req): Promise<Resposta> => {
     const a = exigirAuth(req);
-    const csv = str(corpo(req)['csv'], 'csv', { max: 1_800_000 });
+    const c = corpo(req);
+    const csv = str(c['csv'], 'csv', { max: 1_800_000 });
+    const responsavelId = str(c['responsavel_id'], 'responsavel_id', { max: 40, obrigatorio: false });
     const linhasBrutas = parseCsv(csv);
     const { colunasReconhecidas, linhas } = mapearLinhasCsv(linhasBrutas);
     if (!colunasReconhecidas.includes('nome') || !colunasReconhecidas.includes('telefone')) {
@@ -368,11 +381,14 @@ export function montarApp(db: Db, cfg: Config, dirWeb: string): Aplicacao {
         + 'cabeçalho (ex.: "nome, telefone, contexto").',
       );
     }
-    const resultado = await importarLeads(db, linhas, a.usuario.id);
+    const resultado = await importarLeads(db, linhas, a.usuario.id, responsavelId || null);
     await auditor({
       acao: 'leads.importados', userId: a.usuario.id, email: a.usuario.email,
       entidade: 'lead', ip: req.ip, userAgent: req.userAgent,
-      detalhe: { criados: resultado.criados, duplicados: resultado.duplicados, erros: resultado.erros.length },
+      detalhe: {
+        criados: resultado.criados, duplicados: resultado.duplicados, erros: resultado.erros.length,
+        responsavelId: responsavelId || null,
+      },
     });
     return { status: 200, corpo: { ok: true, ...resultado } };
   });

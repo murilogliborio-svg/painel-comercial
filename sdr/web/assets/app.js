@@ -107,6 +107,7 @@ async function iniciar() {
   configurarConfig();
   configurarUsuarios();
   configurarAuditoria();
+  await carregarOpcoesResponsavel();
   await carregarLeads();
   iniciarAtualizacaoAutomatica();
 }
@@ -159,9 +160,27 @@ function reiniciarPollConversa(id) {
   }, 4000);
 }
 
+async function carregarOpcoesResponsavel() {
+  const j = await api('/api/usuarios');
+  const selects = ['filtro-responsavel', 'lead-responsavel', 'l-responsavel', 'imp-responsavel']
+    .map((id) => document.getElementById(id));
+  for (const sel of selects) {
+    const manterPrimeira = sel.firstElementChild;
+    sel.innerHTML = '';
+    sel.appendChild(manterPrimeira);
+    for (const u of j.usuarios) {
+      const opt = document.createElement('option');
+      opt.value = u.id;
+      opt.textContent = u.nome;
+      sel.appendChild(opt);
+    }
+  }
+}
+
 function configurarLeads() {
   document.getElementById('filtro-busca').addEventListener('input', debounce(carregarLeads, 300));
   document.getElementById('filtro-estagio').addEventListener('change', carregarLeads);
+  document.getElementById('filtro-responsavel').addEventListener('change', carregarLeads);
 
   document.getElementById('btn-novo-lead').addEventListener('click', () => {
     document.getElementById('form-lead').reset();
@@ -177,7 +196,7 @@ function configurarLeads() {
         method: 'POST',
         body: {
           nome: val('l-nome'), telefone: val('l-telefone'), email: val('l-email'),
-          origem: val('l-origem'), contexto: val('l-contexto'),
+          origem: val('l-origem'), contexto: val('l-contexto'), responsavel_id: val('l-responsavel') || null,
         },
       });
       document.getElementById('modal-fundo').classList.add('escondido');
@@ -193,7 +212,10 @@ function configurarLeads() {
     try {
       await api(`/api/leads/${LEAD_ATUAL.id}`, {
         method: 'PATCH',
-        body: { estagio: val('lead-estagio'), contexto: val('lead-contexto') },
+        body: {
+          estagio: val('lead-estagio'), contexto: val('lead-contexto'),
+          responsavel_id: val('lead-responsavel') || null,
+        },
       });
       avisar('Lead salvo.');
       await carregarLeads();
@@ -242,7 +264,8 @@ function configurarLeads() {
     const resultadoEl = document.getElementById('imp-resultado');
     try {
       const csv = await arquivo.text();
-      const j = await api('/api/leads/importar', { method: 'POST', body: { csv } });
+      const responsavelId = val('imp-responsavel') || null;
+      const j = await api('/api/leads/importar', { method: 'POST', body: { csv, responsavel_id: responsavelId } });
       resultadoEl.classList.remove('escondido');
       resultadoEl.innerHTML = '';
       const p1 = document.createElement('p');
@@ -277,9 +300,11 @@ function configurarLeads() {
 async function carregarLeads() {
   const busca = val('filtro-busca');
   const estagio = val('filtro-estagio');
+  const responsavel = val('filtro-responsavel');
   const q = new URLSearchParams();
   if (busca) q.set('busca', busca);
   if (estagio) q.set('estagio', estagio);
+  if (responsavel) q.set('responsavel', responsavel);
   const j = await api(`/api/leads?${q.toString()}`);
   renderLista(j.leads);
 }
@@ -343,6 +368,7 @@ async function abrirLead(id, { silencioso = false } = {}) {
   document.getElementById('lead-telefone').textContent = LEAD_ATUAL.telefone;
   document.getElementById('lead-estagio-selo').textContent = ROTULO_ESTAGIO[LEAD_ATUAL.estagio] || LEAD_ATUAL.estagio;
   document.getElementById('lead-estagio').value = LEAD_ATUAL.estagio;
+  document.getElementById('lead-responsavel').value = LEAD_ATUAL.responsavel_id || '';
   document.getElementById('lead-contexto').value = LEAD_ATUAL.contexto || '';
   document.getElementById('lead-origem').textContent = LEAD_ATUAL.origem || '—';
   document.getElementById('lead-passo').textContent = String(LEAD_ATUAL.sequencia_passo);
@@ -519,6 +545,7 @@ function configurarUsuarios() {
 }
 
 async function carregarUsuarios() {
+  await carregarOpcoesResponsavel();
   const j = await api('/api/admin/usuarios');
   const corpo = document.querySelector('#tabela-usuarios tbody');
   corpo.innerHTML = '';

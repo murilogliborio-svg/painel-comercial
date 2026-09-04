@@ -76,6 +76,7 @@ export async function importarLeads(
   db: Db,
   linhas: Array<{ numero: number; dados: LinhaLeadImportado | null; motivo: string | null }>,
   criadoPor: string,
+  responsavelId: string | null = null,
 ): Promise<ResultadoImportacao> {
   const resultado: ResultadoImportacao = { criados: 0, duplicados: 0, erros: [] };
   for (const linha of linhas) {
@@ -86,7 +87,7 @@ export async function importarLeads(
     try {
       const existente = await buscarLeadPorTelefone(db, linha.dados.telefone);
       if (existente) { resultado.duplicados++; continue; }
-      await criarLead(db, linha.dados, criadoPor);
+      await criarLead(db, { ...linha.dados, responsavelId }, criadoPor);
       resultado.criados++;
     } catch (e) {
       resultado.erros.push({ linha: linha.numero, motivo: String(e) });
