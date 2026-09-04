@@ -178,6 +178,10 @@ td { padding: 8px 9px; border-bottom: 1px solid var(--grid); text-align: right; 
 tbody tr:hover { background: color-mix(in srgb, var(--s1) 6%, transparent); }
 td.nome { font-weight: 600; text-align: left; }
 .rolagem { overflow-x: auto; }
+.detalhe-auditoria {
+  max-width: 320px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  text-align: left; font-family: ui-monospace, monospace; font-size: 11.5px; color: var(--ink2);
+}
 
 .selo {
   display: inline-block; font-size: 10.5px; font-weight: 700; padding: 2px 8px;

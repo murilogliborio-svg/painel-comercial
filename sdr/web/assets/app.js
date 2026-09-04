@@ -518,12 +518,14 @@ async function carregarAuditoria() {
   corpo.innerHTML = '';
   for (const reg of j.registros) {
     const tr = document.createElement('tr');
-    tr.innerHTML = '<td class="nome"></td><td></td><td></td><td></td><td></td>';
+    tr.innerHTML = '<td class="nome"></td><td></td><td></td><td></td><td></td><td class="detalhe-auditoria"></td>';
     tr.children[0].textContent = fmtData(reg.criado_em);
     tr.children[1].textContent = reg.email || '—';
     tr.children[2].textContent = reg.acao;
     tr.children[3].textContent = [reg.entidade, reg.entidade_id].filter(Boolean).join(' · ');
     tr.children[4].textContent = reg.sucesso ? 'sim' : 'não';
+    tr.children[5].textContent = reg.detalhe || '—';
+    if (reg.detalhe) tr.children[5].title = reg.detalhe;
     corpo.appendChild(tr);
   }
 }
