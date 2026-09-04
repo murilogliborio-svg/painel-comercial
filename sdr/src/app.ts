@@ -590,6 +590,13 @@ export function montarApp(db: Db, cfg: Config, dirWeb: string): Aplicacao {
       if (!ativo) await revogarTodasDoUsuario(db, id);
     }
     if (c['nome'] !== undefined) { campos.push('nome = ?'); params.push(str(c['nome'], 'nome', { max: 120 })); }
+    if (c['papel'] !== undefined) {
+      const papel = umDe<Papel>(c['papel'], 'papel', ['admin', 'comercial']);
+      if (papel !== 'admin' && alvo.papel === 'admin' && alvo.id === a.usuario.id) {
+        throw erro.requisicao('Você não pode rebaixar a própria conta.');
+      }
+      campos.push('papel = ?'); params.push(papel);
+    }
     let novaSenha: string | null = null;
     if (c['redefinir_senha'] === true) {
       novaSenha = senhaProvisoria();
@@ -604,6 +611,33 @@ export function montarApp(db: Db, cfg: Config, dirWeb: string): Aplicacao {
     await auditor({ acao: 'usuario.alterado', userId: a.usuario.id, email: a.usuario.email,
       entidade: 'usuario', entidadeId: id, ip: req.ip, userAgent: req.userAgent });
     return { status: 200, corpo: { ok: true, senhaProvisoria: novaSenha } };
+  });
+
+  r.delete('/api/admin/usuarios/:id', async (req): Promise<Resposta> => {
+    const a = exigirPapel(req, 'admin');
+    const id = str(req.params['id'], 'id', { max: 40 });
+    if (id === a.usuario.id) throw erro.requisicao('Você não pode excluir a própria conta.');
+    const alvo = await db.get<{ id: string; papel: Papel; email: string }>(
+      'SELECT id, papel, email FROM users WHERE id = ?', [id],
+    );
+    if (!alvo) throw erro.naoEncontrado('Usuário não encontrado.');
+    if (alvo.papel === 'admin') {
+      const outros = await db.get<{ n: number }>(
+        "SELECT COUNT(*) AS n FROM users WHERE papel = 'admin' AND ativo = 1 AND id != ?", [id],
+      );
+      if (!outros || outros.n < 1) throw erro.requisicao('Não é possível excluir o único administrador ativo.');
+    }
+    const leadsCriados = await db.get<{ n: number }>('SELECT COUNT(*) AS n FROM leads WHERE criado_por = ?', [id]);
+    if (leadsCriados && leadsCriados.n > 0) {
+      throw erro.requisicao(
+        `Este usuário criou ${leadsCriados.n} lead(s) e não pode ser excluído — desative a conta em vez disso.`,
+      );
+    }
+    await revogarTodasDoUsuario(db, id);
+    await db.run('DELETE FROM users WHERE id = ?', [id]);
+    await auditor({ acao: 'usuario.excluido', userId: a.usuario.id, email: a.usuario.email,
+      entidade: 'usuario', entidadeId: id, ip: req.ip, userAgent: req.userAgent, detalhe: { emailExcluido: alvo.email } });
+    return { status: 200, corpo: { ok: true } };
   });
 
   r.get('/api/admin/auditoria', async (req): Promise<Resposta> => {

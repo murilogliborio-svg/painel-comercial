@@ -177,6 +177,8 @@ th:first-child, td:first-child { text-align: left; }
 td { padding: 8px 9px; border-bottom: 1px solid var(--grid); text-align: right; }
 tbody tr:hover { background: color-mix(in srgb, var(--s1) 6%, transparent); }
 td.nome { font-weight: 600; text-align: left; }
+.acoes-usuario { text-align: left; white-space: nowrap; display: flex; gap: 6px; flex-wrap: wrap; }
+.select-papel { font-size: 12.5px; padding: 3px 6px; }
 .rolagem { overflow-x: auto; }
 .detalhe-auditoria {
   max-width: 520px; white-space: normal; word-break: break-word;

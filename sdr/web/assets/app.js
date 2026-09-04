@@ -523,13 +523,82 @@ async function carregarUsuarios() {
   const corpo = document.querySelector('#tabela-usuarios tbody');
   corpo.innerHTML = '';
   for (const u of j.usuarios) {
+    const souEu = EU && EU.id === u.id;
     const tr = document.createElement('tr');
-    tr.innerHTML = '<td class="nome"></td><td></td><td></td><td></td><td></td>';
+    tr.innerHTML = '<td class="nome"></td><td></td><td></td><td></td><td></td><td class="acoes-usuario"></td>';
     tr.children[0].textContent = u.nome;
     tr.children[1].textContent = u.email;
-    tr.children[2].textContent = u.papel;
+
+    const selPapel = document.createElement('select');
+    selPapel.className = 'select-papel';
+    selPapel.innerHTML = '<option value="comercial">comercial</option><option value="admin">admin</option>';
+    selPapel.value = u.papel;
+    selPapel.disabled = souEu;
+    selPapel.addEventListener('change', async () => {
+      try {
+        await api(`/api/admin/usuarios/${u.id}`, { method: 'PATCH', body: { papel: selPapel.value } });
+        avisar('Perfil atualizado.');
+      } catch (e) { avisar(e.message, 'a-erro'); selPapel.value = u.papel; }
+    });
+    tr.children[2].appendChild(selPapel);
+
     tr.children[3].textContent = u.ativo ? 'sim' : 'não';
     tr.children[4].textContent = fmtData(u.ultimo_login);
+
+    const acoes = tr.children[5];
+
+    const btnEditar = document.createElement('button');
+    btnEditar.className = 'btn btn-secundario btn-mini';
+    btnEditar.textContent = 'Renomear';
+    btnEditar.addEventListener('click', async () => {
+      const novoNome = prompt('Novo nome:', u.nome);
+      if (!novoNome || !novoNome.trim() || novoNome.trim() === u.nome) return;
+      try {
+        await api(`/api/admin/usuarios/${u.id}`, { method: 'PATCH', body: { nome: novoNome.trim() } });
+        avisar('Nome atualizado.');
+        await carregarUsuarios();
+      } catch (e) { avisar(e.message, 'a-erro'); }
+    });
+    acoes.appendChild(btnEditar);
+
+    const btnSenha = document.createElement('button');
+    btnSenha.className = 'btn btn-secundario btn-mini';
+    btnSenha.textContent = 'Redefinir senha';
+    btnSenha.addEventListener('click', async () => {
+      if (!confirm(`Gerar uma nova senha provisória para ${u.nome}? A senha atual deixa de funcionar.`)) return;
+      try {
+        const r = await api(`/api/admin/usuarios/${u.id}`, { method: 'PATCH', body: { redefinir_senha: true } });
+        avisar(`Senha provisória de ${u.nome}: ${r.senhaProvisoria} (anote agora, não aparece de novo).`);
+      } catch (e) { avisar(e.message, 'a-erro'); }
+    });
+    acoes.appendChild(btnSenha);
+
+    const btnAtivo = document.createElement('button');
+    btnAtivo.className = 'btn btn-secundario btn-mini';
+    btnAtivo.textContent = u.ativo ? 'Desativar' : 'Ativar';
+    btnAtivo.disabled = souEu && u.ativo;
+    btnAtivo.addEventListener('click', async () => {
+      try {
+        await api(`/api/admin/usuarios/${u.id}`, { method: 'PATCH', body: { ativo: !u.ativo } });
+        await carregarUsuarios();
+      } catch (e) { avisar(e.message, 'a-erro'); }
+    });
+    acoes.appendChild(btnAtivo);
+
+    const btnExcluir = document.createElement('button');
+    btnExcluir.className = 'btn btn-perigo btn-mini';
+    btnExcluir.textContent = 'Excluir';
+    btnExcluir.disabled = souEu;
+    btnExcluir.addEventListener('click', async () => {
+      if (!confirm(`Excluir o usuário "${u.nome}"? Essa ação não pode ser desfeita.`)) return;
+      try {
+        await api(`/api/admin/usuarios/${u.id}`, { method: 'DELETE' });
+        avisar('Usuário excluído.');
+        await carregarUsuarios();
+      } catch (e) { avisar(e.message, 'a-erro'); }
+    });
+    acoes.appendChild(btnExcluir);
+
     corpo.appendChild(tr);
   }
 }

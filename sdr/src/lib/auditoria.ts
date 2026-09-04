@@ -12,7 +12,7 @@ import { ulid } from './ids.ts';
 export type AcaoAuditavel =
   | 'login.sucesso' | 'login.falha' | 'login.bloqueado' | 'logout'
   | 'senha.alterada' | 'senha.redefinida'
-  | 'usuario.criado' | 'usuario.alterado'
+  | 'usuario.criado' | 'usuario.alterado' | 'usuario.excluido'
   | 'lead.criado' | 'lead.alterado' | 'lead.pausado' | 'lead.retomado'
   | 'lead.excluido' | 'leads.importados'
   | 'lead.opt_out'
