@@ -108,6 +108,7 @@ async function iniciar() {
   configurarUsuarios();
   configurarAuditoria();
   await carregarLeads();
+  iniciarAtualizacaoAutomatica();
 }
 
 document.getElementById('btn-sair').addEventListener('click', async () => {
@@ -138,6 +139,25 @@ function configurarAbas() {
 // ----------------------------------------------------------------- leads --
 
 let LEAD_ATUAL = null;
+let QTD_MSGS_ATUAL = 0;
+let TEMPORIZADOR_LISTA = null;
+let TEMPORIZADOR_CONVERSA = null;
+
+function iniciarAtualizacaoAutomatica() {
+  if (TEMPORIZADOR_LISTA) clearInterval(TEMPORIZADOR_LISTA);
+  TEMPORIZADOR_LISTA = setInterval(() => {
+    if (document.hidden) return;
+    carregarLeads().catch(() => {});
+  }, 8000);
+}
+
+function reiniciarPollConversa(id) {
+  if (TEMPORIZADOR_CONVERSA) clearInterval(TEMPORIZADOR_CONVERSA);
+  TEMPORIZADOR_CONVERSA = setInterval(() => {
+    if (document.hidden || !LEAD_ATUAL || LEAD_ATUAL.id !== id) return;
+    abrirLead(id, { silencioso: true }).catch(() => {});
+  }, 4000);
+}
 
 function configurarLeads() {
   document.getElementById('filtro-busca').addEventListener('input', debounce(carregarLeads, 300));
@@ -304,9 +324,15 @@ function selecionarLead(id) {
   abrirLead(id);
 }
 
-async function abrirLead(id) {
+async function abrirLead(id, { silencioso = false } = {}) {
   const j = await api(`/api/leads/${id}`);
   LEAD_ATUAL = j.lead;
+  if (!silencioso) {
+    QTD_MSGS_ATUAL = 0;
+    reiniciarPollConversa(id);
+  }
+  const chegouMsgNova = j.mensagens.length > QTD_MSGS_ATUAL;
+  QTD_MSGS_ATUAL = j.mensagens.length;
   document.getElementById('painel-lead-vazio').classList.add('escondido');
   document.getElementById('painel-lead').classList.remove('escondido');
 
@@ -351,7 +377,7 @@ async function abrirLead(id) {
     }
     msgs.appendChild(div);
   }
-  msgs.scrollTop = msgs.scrollHeight;
+  if (!silencioso || chegouMsgNova) msgs.scrollTop = msgs.scrollHeight;
 }
 
 // --------------------------------------------------------------- config --
