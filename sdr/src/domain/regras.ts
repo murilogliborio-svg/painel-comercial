@@ -30,7 +30,7 @@ export interface RegrasEnvio {
    * propósito do passo) e o modelo (template) aprovado pela Meta a usar —
    * ver `nomeTemplate`.
    */
-  passos: Array<{ diasDeEspera: number; objetivo: string; nomeTemplate: string }>;
+  passos: Array<{ diasDeEspera: number; objetivo: string; nomeTemplate: string; corpoTemplate?: string }>;
   /**
    * Código de idioma (formato da Meta, ex.: "pt_BR") usado em todo envio de
    * modelo. Um só idioma para todos os passos: mantém simples.
@@ -132,6 +132,16 @@ export function objetivoDoPasso(regras: RegrasEnvio, passo: number): string {
 
 export function nomeTemplateDoPasso(regras: RegrasEnvio, passo: number): string {
   return regras.passos[passo]?.nomeTemplate?.trim() ?? '';
+}
+
+/**
+ * Corpo do modelo aprovado, exatamente como cadastrado pelo gestor (cópia
+ * do texto aprovado na Meta, com {{1}} no lugar do nome). Usado só para
+ * registrar no painel o texto real que o lead recebeu — a Cloud API não
+ * devolve o corpo do modelo na resposta de envio, só confirma o disparo.
+ */
+export function corpoTemplateDoPasso(regras: RegrasEnvio, passo: number): string {
+  return regras.passos[passo]?.corpoTemplate?.trim() ?? '';
 }
 
 const JANELA_SERVICO_MS = 24 * 3_600_000;

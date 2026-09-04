@@ -424,10 +424,17 @@ function linhaPasso(passo, idx) {
     <div class="linha-form">
       <div class="campo campo-flex3"><label>Nome do modelo aprovado na Meta</label>
         <input type="text" class="p-template" placeholder="ex.: abertura_evento"></div>
+    </div>
+    <div class="linha-form">
+      <div class="campo campo-flex3">
+        <label>Texto do modelo aprovado (copie exatamente da Meta, com {{1}} no lugar do nome)</label>
+        <textarea class="p-corpo-template" placeholder="Ex.: Olá {{1}}! Aqui é a Di Terrá..."></textarea>
+      </div>
     </div>`;
   div.querySelector('.p-dias').value = passo.diasDeEspera;
   div.querySelector('.p-objetivo').value = passo.objetivo;
   div.querySelector('.p-template').value = passo.nomeTemplate || '';
+  div.querySelector('.p-corpo-template').value = passo.corpoTemplate || '';
   div.querySelector('.btn-remover-passo').addEventListener('click', () => div.remove());
   return div;
 }
@@ -453,6 +460,7 @@ function configurarConfig() {
       diasDeEspera: Number(div.querySelector('.p-dias').value) || 0,
       objetivo: div.querySelector('.p-objetivo').value.trim(),
       nomeTemplate: div.querySelector('.p-template').value.trim(),
+      corpoTemplate: div.querySelector('.p-corpo-template').value.trim(),
     }));
     try {
       await api('/api/config/regras', {
