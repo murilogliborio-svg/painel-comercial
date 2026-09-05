@@ -72,30 +72,33 @@
 
   <!-- ------------------------------------------------------------ Leads -->
   <section id="painel-leads">
-    <div class="linha-form mb-14">
-      <div class="campo">
-        <label for="filtro-busca">Buscar</label>
-        <input type="text" id="filtro-busca" placeholder="Nome ou telefone">
-      </div>
-      <div class="campo">
-        <label for="filtro-estagio">Estágio</label>
-        <select id="filtro-estagio">
-          <option value="">Todos</option>
-          <option value="novo">Novo</option>
-          <option value="aquecendo">Aquecendo</option>
-          <option value="aguardando_resposta">Aguardando resposta</option>
-          <option value="respondeu">Respondeu</option>
-          <option value="quente">Quente</option>
-          <option value="convertido">Convertido</option>
-          <option value="perdido">Perdido</option>
-          <option value="pausado">Pausado</option>
-        </select>
-      </div>
-      <div class="campo">
-        <label for="filtro-responsavel">Responsável</label>
-        <select id="filtro-responsavel">
-          <option value="">Todos</option>
-        </select>
+    <div class="linha-form mb-14 barra-leads">
+      <button type="button" class="btn btn-secundario btn-toggle-busca" id="btn-toggle-busca">Buscar</button>
+      <div class="filtros-leads" id="filtros-leads">
+        <div class="campo">
+          <label for="filtro-busca">Buscar</label>
+          <input type="text" id="filtro-busca" placeholder="Nome ou telefone">
+        </div>
+        <div class="campo">
+          <label for="filtro-estagio">Estágio</label>
+          <select id="filtro-estagio">
+            <option value="">Todos</option>
+            <option value="novo">Novo</option>
+            <option value="aquecendo">Aquecendo</option>
+            <option value="aguardando_resposta">Aguardando resposta</option>
+            <option value="respondeu">Respondeu</option>
+            <option value="quente">Quente</option>
+            <option value="convertido">Convertido</option>
+            <option value="perdido">Perdido</option>
+            <option value="pausado">Pausado</option>
+          </select>
+        </div>
+        <div class="campo">
+          <label for="filtro-responsavel">Responsável</label>
+          <select id="filtro-responsavel">
+            <option value="">Todos</option>
+          </select>
+        </div>
       </div>
       <button class="btn btn-secundario" id="btn-importar-leads">Importar planilha</button>
       <button class="btn" id="btn-novo-lead">+ Novo lead</button>
@@ -119,9 +122,10 @@
               <div class="lede mt-2" id="lead-telefone"></div>
             </div>
             <span class="selo s-neutro" id="lead-estagio-selo">—</span>
+            <button type="button" class="btn btn-secundario btn-mini" id="btn-toggle-detalhes">Detalhes</button>
           </div>
 
-          <div class="detalhes-lead">
+          <div class="detalhes-lead escondido" id="detalhes-lead">
             <div class="campos-rapidos">
               <div class="campo campo-160">
                 <label for="lead-estagio">Estágio</label>

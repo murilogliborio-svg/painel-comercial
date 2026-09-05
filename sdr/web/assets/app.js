@@ -206,6 +206,13 @@ function configurarLeads() {
   document.getElementById('filtro-estagio').addEventListener('change', carregarLeads);
   document.getElementById('filtro-responsavel').addEventListener('change', carregarLeads);
 
+  if (window.matchMedia('(max-width: 900px)').matches) {
+    document.getElementById('filtros-leads').classList.add('escondido');
+  }
+  document.getElementById('btn-toggle-busca').addEventListener('click', () => {
+    document.getElementById('filtros-leads').classList.toggle('escondido');
+  });
+
   document.getElementById('btn-novo-lead').addEventListener('click', () => {
     document.getElementById('form-lead').reset();
     document.getElementById('modal-fundo').classList.remove('escondido');
@@ -245,6 +252,13 @@ function configurarLeads() {
       await carregarLeads();
       await abrirLead(LEAD_ATUAL.id);
     } catch (e) { avisar(e.message, 'a-erro'); }
+  });
+
+  document.getElementById('btn-toggle-detalhes').addEventListener('click', () => {
+    const detalhes = document.getElementById('detalhes-lead');
+    const abrindo = detalhes.classList.contains('escondido');
+    detalhes.classList.toggle('escondido');
+    document.getElementById('btn-toggle-detalhes').textContent = abrindo ? 'Ocultar detalhes' : 'Detalhes';
   });
 
   document.getElementById('btn-toggle-automacao').addEventListener('click', async () => {
@@ -374,6 +388,7 @@ function selecionarLead(id) {
 }
 
 async function abrirLead(id, { silencioso = false } = {}) {
+  const idAnterior = LEAD_ATUAL?.id;
   const j = await api(`/api/leads/${id}`);
   LEAD_ATUAL = j.lead;
   if (!silencioso) {
@@ -384,6 +399,10 @@ async function abrirLead(id, { silencioso = false } = {}) {
   QTD_MSGS_ATUAL = j.mensagens.length;
   document.getElementById('painel-lead-vazio').classList.add('escondido');
   document.getElementById('painel-lead').classList.remove('escondido');
+  if (idAnterior !== id) {
+    document.getElementById('detalhes-lead').classList.add('escondido');
+    document.getElementById('btn-toggle-detalhes').textContent = 'Detalhes';
+  }
 
   const avatar = document.getElementById('lead-avatar');
   avatar.textContent = iniciais(LEAD_ATUAL.nome);

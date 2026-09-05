@@ -382,6 +382,14 @@ td.nome { font-weight: 600; text-align: left; }
 .layout-leads { display: grid; grid-template-columns: minmax(280px, 360px) 1fr; gap: 16px; align-items: start; }
 @media (max-width: 900px) { .layout-leads { grid-template-columns: 1fr; } }
 
+.barra-leads { align-items: flex-end; }
+.filtros-leads { display: flex; gap: 10px; flex-wrap: wrap; }
+.btn-toggle-busca { display: none; }
+@media (max-width: 900px) {
+  .btn-toggle-busca { display: inline-flex; }
+  .filtros-leads { width: 100%; order: 10; }
+}
+
 /* ------------------------------------------------------------- avatares -- */
 
 .avatar {
