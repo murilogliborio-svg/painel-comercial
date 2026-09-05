@@ -783,4 +783,12 @@ function debounce(fn, ms) {
   return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
 }
 
-iniciar();
+function esconderBoasVindas() {
+  const el = document.getElementById('tela-boas-vindas');
+  if (!el) return;
+  el.classList.add('saindo');
+  setTimeout(() => el.remove(), 500);
+}
+
+const esperaMinima = new Promise((resolve) => setTimeout(resolve, 900));
+Promise.all([iniciar(), esperaMinima]).then(esconderBoasVindas);

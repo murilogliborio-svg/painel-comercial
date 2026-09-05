@@ -43,7 +43,20 @@ form.addEventListener('submit', async (ev) => {
   }
 });
 
-fetch('/api/auth/eu').then((r) => { if (r.ok) location.href = '/painel'; }).catch(() => {});
+function esconderBoasVindas() {
+  const el = document.getElementById('tela-boas-vindas');
+  if (!el) return;
+  el.classList.add('saindo');
+  setTimeout(() => el.remove(), 500);
+}
+
+const verificacaoSessao = fetch('/api/auth/eu')
+  .then((r) => { if (r.ok) location.href = '/painel'; return r.ok; })
+  .catch(() => false);
+const esperaMinima = new Promise((resolve) => setTimeout(resolve, 900));
+Promise.all([verificacaoSessao, esperaMinima]).then(([logado]) => {
+  if (!logado) esconderBoasVindas();
+});
 
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('/sw.js').catch(() => {});

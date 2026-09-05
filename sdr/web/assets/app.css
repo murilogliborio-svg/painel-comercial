@@ -80,6 +80,53 @@ h1, h2, h3 { letter-spacing: -.02em; margin: 0; }
 .marca-wordmark-lg { font-size: 1.5em; }
 .marca-wordmark-lg .terra { font-size: 30px; }
 .marca-wordmark-lg .di { font-size: 15px; }
+
+/* ---------------------------------------------------------- boas-vindas -- */
+
+.tela-boas-vindas {
+  position: fixed; inset: 0; z-index: 9999;
+  display: flex; align-items: center; justify-content: center;
+  background: linear-gradient(160deg, var(--marca-navy), var(--marca-navy2));
+  transition: opacity .45s ease, visibility 0s linear .45s;
+}
+.tela-boas-vindas.saindo { opacity: 0; visibility: hidden; pointer-events: none; }
+
+.bv-conteudo { display: flex; flex-direction: column; align-items: center; gap: 20px; }
+.bv-wordmark {
+  font-family: Georgia, 'Iowan Old Style', 'Palatino Linotype', 'Book Antiqua', serif;
+  color: var(--marca-ink); display: flex; align-items: baseline; gap: 9px;
+  opacity: 0; transform: translateY(6px) scale(.98);
+  animation: bv-entrada .8s cubic-bezier(.22, .9, .34, 1) forwards;
+}
+.bv-wordmark .di { font-size: 15px; letter-spacing: .18em; }
+.bv-wordmark .terra { font-size: 34px; letter-spacing: .1em; }
+
+.bv-linha {
+  width: 120px; height: 2px; background: var(--marca-dourado); border-radius: 2px;
+  transform: scaleX(0); transform-origin: center;
+  animation: bv-linha .7s ease-out .5s forwards;
+}
+
+.bv-pontos { display: flex; gap: 7px; }
+.bv-pontos span {
+  width: 6px; height: 6px; border-radius: 50%; background: var(--marca-dourado);
+  opacity: .3; animation: bv-pontos 1.2s ease-in-out infinite;
+}
+.bv-pontos span:nth-child(2) { animation-delay: .15s; }
+.bv-pontos span:nth-child(3) { animation-delay: .3s; }
+
+@keyframes bv-entrada { to { opacity: 1; transform: translateY(0) scale(1); } }
+@keyframes bv-linha { to { transform: scaleX(1); } }
+@keyframes bv-pontos {
+  0%, 100% { opacity: .3; transform: translateY(0); }
+  50% { opacity: 1; transform: translateY(-4px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bv-wordmark { animation: none; opacity: 1; transform: none; }
+  .bv-linha { animation: none; transform: scaleX(1); }
+  .bv-pontos span { animation: none; opacity: .8; }
+}
 .login-cartao {
   width: 100%;
   max-width: 400px;
