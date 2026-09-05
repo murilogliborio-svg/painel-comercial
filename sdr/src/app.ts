@@ -32,6 +32,7 @@ import {
 import { parseCsv, mapearLinhasCsv } from './lib/csv.ts';
 import {
   obterPersona, definirPersona, obterRegras, definirRegras, obterQualificacao, definirQualificacao,
+  obterAlerta, definirAlerta,
 } from './domain/config.ts';
 import { tratarMensagemRecebida, varrerLeadsDevidos } from './domain/mensagens.ts';
 import { janelaDeServicoAtiva } from './domain/regras.ts';
@@ -553,6 +554,27 @@ export function montarApp(db: Db, cfg: Config, dirWeb: string): Aplicacao {
     return { status: 200, corpo: { ok: true } };
   });
 
+  r.get('/api/config/alerta', async (req): Promise<Resposta> => {
+    exigirAuth(req);
+    return { status: 200, corpo: { alerta: await obterAlerta(db) } };
+  });
+
+  r.put('/api/config/alerta', async (req): Promise<Resposta> => {
+    const a = exigirPapel(req, 'admin');
+    const c = corpo(req);
+    const alerta = {
+      ativo: !!c['ativo'],
+      telefone: str(c['telefone'], 'telefone', { max: 20, obrigatorio: false }),
+      nomeTemplate: str(c['nomeTemplate'], 'nomeTemplate', { max: 150, obrigatorio: false }),
+      idioma: str(c['idioma'], 'idioma', { max: 20, obrigatorio: false }) || 'pt_BR',
+      nomeDestinatario: str(c['nomeDestinatario'], 'nomeDestinatario', { max: 100, obrigatorio: false }),
+    };
+    await definirAlerta(db, alerta, a.usuario.id);
+    await auditor({ acao: 'config.alterada', userId: a.usuario.id, email: a.usuario.email,
+      entidade: 'config', entidadeId: 'alerta', ip: req.ip, userAgent: req.userAgent });
+    return { status: 200, corpo: { ok: true } };
+  });
+
   // -------------------------------------------------------------------------
   // Administração de usuários
   // -------------------------------------------------------------------------
@@ -688,6 +710,7 @@ export function montarApp(db: Db, cfg: Config, dirWeb: string): Aplicacao {
       const regras = await obterRegras(db);
       const qualificacao = await obterQualificacao(db);
       const persona = await obterPersona(db);
+      const alerta = await obterAlerta(db);
       for (const m of mensagens) {
         let lead = await buscarLeadPorTelefone(db, m.telefone);
         if (!lead) {
@@ -705,6 +728,7 @@ export function montarApp(db: Db, cfg: Config, dirWeb: string): Aplicacao {
           db, auditor, lead, m.texto, regras, qualificacao, persona, cfg.ia,
           { modo: cfg.whatsapp.modo, token: cfg.whatsapp.token, phoneNumberId: cfg.whatsapp.phoneNumberId,
             verifyToken: cfg.whatsapp.verifyToken, apiVersion: cfg.whatsapp.apiVersion },
+          alerta,
           m.idExterno,
         );
       }

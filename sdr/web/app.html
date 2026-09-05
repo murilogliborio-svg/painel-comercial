@@ -202,6 +202,31 @@
           <button class="btn btn-largo mt-16" type="submit">Salvar qualificação</button>
         </form>
       </div>
+
+      <div class="cartao">
+        <h3>Aviso de resposta (WhatsApp)</h3>
+        <p class="lede">
+          Manda um aviso por WhatsApp para você assim que um lead sair da automação fria e responder pela
+          primeira vez, pra você não perder o momento em que a I.A. começa a conversar de verdade. Precisa de
+          um modelo aprovado pela Meta com variáveis nomeadas (ex.: {{nome}} e {{lead}}).
+        </p>
+        <form id="form-alerta">
+          <label class="campo-check">
+            <input type="checkbox" id="al-ativo">
+            Ativar aviso de resposta
+          </label>
+          <label for="al-telefone">Seu número de WhatsApp (com DDI e DDD)</label>
+          <input type="text" id="al-telefone" placeholder="ex.: 5519999998436">
+          <label for="al-nome-destinatario">Seu nome (preenche a variável {{nome}})</label>
+          <input type="text" id="al-nome-destinatario" placeholder="ex.: Murilo">
+          <div class="linha-form">
+            <div class="campo campo-flex3"><label for="al-template">Nome do modelo aprovado na Meta</label>
+              <input type="text" id="al-template" placeholder="ex.: alerta_lead_respondeu"></div>
+            <div class="campo"><label for="al-idioma">Idioma</label><input type="text" id="al-idioma" placeholder="pt_BR"></div>
+          </div>
+          <button class="btn btn-largo mt-16" type="submit">Salvar aviso</button>
+        </form>
+      </div>
     </div>
   </section>
 

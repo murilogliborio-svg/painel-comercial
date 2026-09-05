@@ -111,6 +111,35 @@ export async function enviarTemplate(
 }
 
 /**
+ * Modelo com múltiplas variáveis nomeadas (ex.: {{nome}} e {{lead}} no mesmo
+ * corpo) — caso do aviso interno ao gestor, diferente do aquecimento (que
+ * tem só uma variável por passo). `variaveis` mapeia nome da variável -> valor.
+ */
+export async function enviarTemplateNomeado(
+  cfg: ConfigWhatsapp,
+  telefone: string,
+  nomeTemplate: string,
+  idioma: string,
+  variaveis: Record<string, string>,
+): Promise<ResultadoEnvio> {
+  if (cfg.modo === 'simulado') {
+    return { ok: true, simulado: true, idExterno: null };
+  }
+  const parametros = Object.entries(variaveis).map(([nome, texto]) => ({
+    type: 'text', parameter_name: nome, text: texto,
+  }));
+  return postarMensagem(cfg, {
+    to: normalizarTelefone(telefone),
+    type: 'template',
+    template: {
+      name: nomeTemplate,
+      language: { code: idioma },
+      components: parametros.length ? [{ type: 'body', parameters: parametros }] : [],
+    },
+  });
+}
+
+/**
  * Responde ao desafio de verificação do webhook (GET com hub.mode=subscribe).
  * Devolve o `hub.challenge` a ecoar, ou null se o verify_token não bater.
  */

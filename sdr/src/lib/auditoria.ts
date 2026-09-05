@@ -18,6 +18,7 @@ export type AcaoAuditavel =
   | 'lead.opt_out'
   | 'mensagem.gerada' | 'mensagem.enviada' | 'mensagem.falhou' | 'mensagem.recebida'
   | 'mensagem.bloqueada_por_regra'
+  | 'alerta.enviado' | 'alerta.falhou'
   | 'config.alterada'
   | 'acesso.negado';
 

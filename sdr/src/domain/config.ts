@@ -11,6 +11,7 @@ import { regrasPadrao, type RegrasEnvio } from './regras.ts';
 const CHAVE_PERSONA = 'persona';
 const CHAVE_REGRAS = 'regras';
 const CHAVE_QUALIFICACAO = 'qualificacao';
+const CHAVE_ALERTA = 'alerta';
 
 export function personaPadrao(): PersonaConfig {
   return {
@@ -37,6 +38,24 @@ export function qualificacaoPadrao(): QualificacaoConfig {
     objetivo:
       'Número de convidados, data prevista do evento, local desejado (ou se ainda não decidiu) e estilo/tema '
       + 'da festa. Se o lead demonstrar urgência ou pedir preço/orçamento, considere isso suficiente também.',
+  };
+}
+
+export interface AlertaConfig {
+  /** Liga/desliga o aviso pro gestor quando um lead sai da automação fria e responde pela primeira vez. */
+  ativo: boolean;
+  /** Número (WhatsApp) do gestor que recebe o aviso. */
+  telefone: string;
+  /** Nome do modelo aprovado na Meta para esse aviso (categoria Utilidade/Marketing, variáveis nomeadas). */
+  nomeTemplate: string;
+  idioma: string;
+  /** Valor a preencher na variável com o nome do destinatário do aviso (ex.: "Murilo"). */
+  nomeDestinatario: string;
+}
+
+export function alertaPadrao(): AlertaConfig {
+  return {
+    ativo: false, telefone: '', nomeTemplate: 'alerta_lead_respondeu', idioma: 'pt_BR', nomeDestinatario: '',
   };
 }
 
@@ -84,4 +103,12 @@ export async function obterQualificacao(db: Db): Promise<QualificacaoConfig> {
 
 export async function definirQualificacao(db: Db, cfg: QualificacaoConfig, userId: string): Promise<void> {
   await gravarConfig(db, CHAVE_QUALIFICACAO, cfg, userId);
+}
+
+export async function obterAlerta(db: Db): Promise<AlertaConfig> {
+  return lerConfig(db, CHAVE_ALERTA, alertaPadrao());
+}
+
+export async function definirAlerta(db: Db, cfg: AlertaConfig, userId: string): Promise<void> {
+  await gravarConfig(db, CHAVE_ALERTA, cfg, userId);
 }

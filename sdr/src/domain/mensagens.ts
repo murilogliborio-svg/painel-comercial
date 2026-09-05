@@ -11,13 +11,13 @@ import {
   gerarMensagem, gerarRespostaQualificacao, ErroIA, type PersonaConfig,
 } from '../integracoes/ia.ts';
 import {
-  enviar as enviarWhatsapp, enviarTemplate, type ConfigWhatsapp, type ResultadoEnvio,
+  enviar as enviarWhatsapp, enviarTemplate, enviarTemplateNomeado, type ConfigWhatsapp, type ResultadoEnvio,
 } from '../integracoes/whatsapp.ts';
 import {
   leadElegivel, calcularProximaMensagemEm, objetivoDoPasso, nomeTemplateDoPasso, corpoTemplateDoPasso,
   nomeVariavelDoPasso, janelaDeServicoAtiva, contemOptOut, type RegrasEnvio,
 } from './regras.ts';
-import type { QualificacaoConfig } from './config.ts';
+import type { QualificacaoConfig, AlertaConfig } from './config.ts';
 import {
   listarLeadsDevidos, listarMensagens, avancarSequencia, marcarOptOut, registrarResposta,
   avancarQualificacao, encerrarQualificacao, contarEnviadasHoje, buscarLeadPorTelefone, type Lead,
@@ -281,6 +281,36 @@ async function processarQualificacao(
  * Se estiver desligada, "sempre humano" continua valendo já na primeira
  * resposta, como antes.
  */
+/**
+ * Avisa o gestor, por WhatsApp, que um lead acabou de sair da automação fria
+ * e respondeu — o momento em que ele mais precisa saber, porque a partir daí
+ * a I.A. (ou um humano) está conduzindo uma conversa real. Nunca lança: um
+ * alerta que falha não pode derrubar o tratamento da mensagem do lead.
+ */
+async function enviarAlertaResposta(
+  cfgWhatsapp: ConfigWhatsapp,
+  alerta: AlertaConfig,
+  lead: Lead,
+  auditor: Auditor,
+): Promise<void> {
+  if (!alerta.ativo || !alerta.telefone || !alerta.nomeTemplate) return;
+  try {
+    const envio = await enviarTemplateNomeado(cfgWhatsapp, alerta.telefone, alerta.nomeTemplate, alerta.idioma, {
+      nome: alerta.nomeDestinatario || 'time', lead: lead.nome,
+    });
+    await auditor({
+      acao: envio.ok ? 'alerta.enviado' : 'alerta.falhou',
+      entidade: 'lead',
+      entidadeId: lead.id,
+      detalhe: envio.ok ? null : { erro: envio.erro },
+    });
+  } catch (e) {
+    await auditor({
+      acao: 'alerta.falhou', entidade: 'lead', entidadeId: lead.id, detalhe: { erro: String(e) },
+    });
+  }
+}
+
 export async function tratarMensagemRecebida(
   db: Db,
   auditor: Auditor,
@@ -291,6 +321,7 @@ export async function tratarMensagemRecebida(
   persona: PersonaConfig,
   cfgIa: ConfigIA,
   cfgWhatsapp: ConfigWhatsapp,
+  alerta: AlertaConfig,
   idExterno: string,
   agora: Date = new Date(),
 ): Promise<void> {
@@ -305,6 +336,10 @@ export async function tratarMensagemRecebida(
   const primeiraResposta = AINDA_FRIO.has(lead.estagio);
   await registrarResposta(db, lead.id);
   await auditor({ acao: 'mensagem.recebida', entidade: 'lead', entidadeId: lead.id });
+
+  if (primeiraResposta) {
+    await enviarAlertaResposta(cfgWhatsapp, alerta, lead, auditor);
+  }
 
   const podeQualificar = qualificacao.ativa && !!lead.automacao_ativa
     && (primeiraResposta || !!lead.qualificacao_ativa);

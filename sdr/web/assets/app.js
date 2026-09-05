@@ -506,11 +506,29 @@ function configurarConfig() {
       avisar('Qualificação salva.');
     } catch (e) { avisar(e.message, 'a-erro'); }
   });
+
+  document.getElementById('form-alerta').addEventListener('submit', async (ev) => {
+    ev.preventDefault();
+    try {
+      await api('/api/config/alerta', {
+        method: 'PUT',
+        body: {
+          ativo: document.getElementById('al-ativo').checked,
+          telefone: val('al-telefone'),
+          nomeDestinatario: val('al-nome-destinatario'),
+          nomeTemplate: val('al-template'),
+          idioma: val('al-idioma') || 'pt_BR',
+        },
+      });
+      avisar('Aviso salvo.');
+    } catch (e) { avisar(e.message, 'a-erro'); }
+  });
 }
 
 async function carregarConfig() {
-  const [{ persona }, { regras }, { qualificacao }] = await Promise.all([
+  const [{ persona }, { regras }, { qualificacao }, { alerta }] = await Promise.all([
     api('/api/config/persona'), api('/api/config/regras'), api('/api/config/qualificacao'),
+    api('/api/config/alerta'),
   ]);
   document.getElementById('q-ativa').checked = qualificacao.ativa;
   document.getElementById('q-max').value = qualificacao.maxMensagens;
@@ -519,6 +537,12 @@ async function carregarConfig() {
   document.getElementById('p-atendente').value = persona.nomeAtendente;
   document.getElementById('p-tom').value = persona.tom;
   document.getElementById('p-diretrizes').value = persona.diretrizes;
+
+  document.getElementById('al-ativo').checked = alerta.ativo;
+  document.getElementById('al-telefone').value = alerta.telefone;
+  document.getElementById('al-nome-destinatario').value = alerta.nomeDestinatario;
+  document.getElementById('al-template').value = alerta.nomeTemplate;
+  document.getElementById('al-idioma').value = alerta.idioma;
 
   document.getElementById('r-hi').value = regras.horarioInicio;
   document.getElementById('r-hf').value = regras.horarioFim;
