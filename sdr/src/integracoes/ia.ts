@@ -169,6 +169,8 @@ export interface RespostaQualificacao {
   precisaAtencaoHumanaAgora: boolean;
   /** true se esta mensagem está oferecendo/confirmando um horário de visita — o gestor recebe um aviso, mas a automação continua normalmente. */
   estaOferecendoAgendamento: boolean;
+  /** true se o lead perguntou sobre preço/valor ou pediu pra fechar — dispara aviso imediato pro gestor. */
+  pediuPrecoOuFechamento: boolean;
 }
 
 const FERRAMENTA_QUALIFICACAO = {
@@ -214,6 +216,13 @@ const FERRAMENTA_QUALIFICACAO = {
           + 'combinado). O gestor recebe um aviso quando isso acontece, mas a automação continua normalmente — '
           + 'isso NÃO substitui precisa_atencao_humana_agora nem marca qualificação completa sozinho.',
       },
+      pediu_preco_ou_fechamento: {
+        type: 'boolean',
+        description:
+          'true se o lead perguntou sobre preço/valor ou pediu claramente pra fechar/contratar. Marque junto '
+          + 'com qualificacao_completa true. O gestor recebe um aviso imediato pra assumir a partir daqui — a '
+          + 'mensagem gerada ainda é enviada normalmente ao lead (isso é diferente de precisa_atencao_humana_agora).',
+      },
     },
     required: ['mensagem', 'qualificacao_completa'],
   },
@@ -245,7 +254,9 @@ function montarSystemPromptQualificacao(persona: PersonaConfig, objetivo: string
       + 'a energia de quem responde, nunca impondo a sua.',
     '- Não invente promessa, preço, condição ou prazo que não esteja no contexto fornecido.',
     '- Se o lead pedir para falar com uma pessoa, saber preço, ou fechar algo — marque qualificação completa '
-      + 'na hora, mesmo sem ter perguntado tudo: não segure a pessoa que já quer avançar.',
+      + 'na hora, mesmo sem ter perguntado tudo: não segure a pessoa que já quer avançar. Se for '
+      + 'especificamente preço/valor ou pedido de fechamento, marque também pediu_preco_ou_fechamento como '
+      + 'true, pra o gestor ser avisado na hora.',
     '- Se o lead responder algo que não tem a ver (ou pedir pra parar), marque qualificação completa também: '
       + 'não insista sozinho, deixe para o humano decidir.',
     '- Se o lead perguntar diretamente se está falando com um robô, uma inteligência artificial ou um sistema '
@@ -312,7 +323,7 @@ export async function gerarRespostaQualificacao(
   const chamada = json.content?.find((b) => b.type === 'tool_use');
   const entrada = chamada?.input as {
     mensagem?: string; qualificacao_completa?: boolean; resumo?: string; precisa_atencao_humana_agora?: boolean;
-    esta_oferecendo_agendamento?: boolean;
+    esta_oferecendo_agendamento?: boolean; pediu_preco_ou_fechamento?: boolean;
   } | undefined;
   if (!entrada?.mensagem) throw new ErroIA('resposta_vazia', 'A I.A. não devolveu uma mensagem válida.');
 
@@ -323,5 +334,6 @@ export async function gerarRespostaQualificacao(
     resumo: entrada.resumo?.trim() || null,
     precisaAtencaoHumanaAgora,
     estaOferecendoAgendamento: !!entrada.esta_oferecendo_agendamento,
+    pediuPrecoOuFechamento: !!entrada.pediu_preco_ou_fechamento,
   };
 }

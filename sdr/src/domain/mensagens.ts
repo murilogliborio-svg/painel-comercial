@@ -268,7 +268,7 @@ async function processarQualificacao(
     geradaPorIa: true, idExterno: envio.idExterno,
   });
 
-  if (resposta.estaOferecendoAgendamento) {
+  if (resposta.estaOferecendoAgendamento || resposta.pediuPrecoOuFechamento) {
     await enviarAlertaResposta(cfgWhatsapp, alerta, lead, auditor);
   }
 
