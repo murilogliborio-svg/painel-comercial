@@ -21,7 +21,8 @@
   --warn: #fab219;
   --warn-ink: #8a6100;
   --crit: #d03b3b;
-  --raio: 12px;
+  --raio: 16px;
+  --sombra: 0 1px 2px rgba(20, 18, 40, .04), 0 10px 26px -14px rgba(20, 18, 40, .18);
   --wa-painel: #eae6df;
   --wa-saida: #d9fdd3;
   --wa-entrada: #ffffff;
@@ -86,6 +87,7 @@ h1, h2, h3 { letter-spacing: -.02em; margin: 0; }
   border: 1px solid var(--border);
   border-radius: var(--raio);
   padding: 32px;
+  box-shadow: 0 20px 50px -20px rgba(0, 0, 0, .5);
 }
 .login-cartao h1 { font-size: 20px; margin-bottom: 4px; }
 .login-cartao .sub { color: var(--ink2); font-size: 13px; margin-bottom: 24px; }
@@ -97,7 +99,7 @@ input[type=number], input[type=date], select, textarea {
   width: 100%;
   padding: 10px 12px;
   border: 1px solid var(--axis);
-  border-radius: 8px;
+  border-radius: 10px;
   background: var(--plane);
   color: var(--ink);
   font: inherit;
@@ -111,7 +113,7 @@ textarea { resize: vertical; min-height: 76px; }
 
 .btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 7px;
-  padding: 10px 16px; border-radius: 8px; border: 1px solid var(--s1);
+  padding: 10px 16px; border-radius: 10px; border: 1px solid var(--s1);
   background: var(--s1); color: #fff; font: inherit; font-weight: 600;
   cursor: pointer;
 }
@@ -121,7 +123,7 @@ textarea { resize: vertical; min-height: 76px; }
 .btn-secundario { background: transparent; color: var(--ink2); border-color: var(--border); }
 .btn-secundario:hover { color: var(--ink); }
 .btn-perigo { background: var(--crit); border-color: var(--crit); }
-.btn-mini { padding: 5px 10px; font-size: 12px; border-radius: 6px; }
+.btn-mini { padding: 5px 10px; font-size: 12px; border-radius: 8px; }
 
 /* --------------------------------------------------------------- layout */
 
@@ -144,18 +146,21 @@ textarea { resize: vertical; min-height: 76px; }
 .marca-wordmark .terra { font-size: 21px; letter-spacing: .09em; }
 .marca-tag { font-size: 10.5px; color: var(--marca-muted); letter-spacing: .03em; margin-top: 6px; }
 
-nav.abas { display: flex; flex-direction: column; gap: 2px; padding: 14px 12px; flex: 1; }
+nav.abas { display: flex; flex-direction: column; gap: 3px; padding: 14px 12px; flex: 1; }
 nav.abas button {
   display: flex; align-items: center; gap: 11px; text-align: left;
-  background: none; border: none; border-left: 3px solid transparent; border-radius: 8px;
-  padding: 10px 11px; font: inherit; font-weight: 600; font-size: 13px;
+  background: none; border: none; border-radius: 999px;
+  padding: 10px 14px; font: inherit; font-weight: 600; font-size: 13px;
   color: var(--marca-muted); cursor: pointer; white-space: nowrap;
+  transition: background-color .15s ease, color .15s ease;
 }
 nav.abas button svg { flex: none; width: 17px; height: 17px; }
-nav.abas button:hover { color: var(--marca-ink); background: rgba(255, 255, 255, .05); }
+nav.abas button:hover { color: var(--marca-ink); background: rgba(255, 255, 255, .06); }
 nav.abas button[aria-selected="true"] {
-  color: var(--marca-ink); background: rgba(255, 255, 255, .08); border-left-color: var(--marca-dourado);
+  color: var(--marca-navy); background: #e9e7f0;
+  box-shadow: 0 6px 16px -6px rgba(0, 0, 0, .45);
 }
+nav.abas button[aria-selected="true"] svg { color: var(--marca-navy); }
 
 .area-principal { flex: 1; min-width: 0; }
 
@@ -181,14 +186,13 @@ main { max-width: 1240px; margin: 0 auto; padding: 22px 24px 80px; }
   .lateral-marca { border-bottom: none; border-right: 1px solid var(--marca-linha); padding: 14px 16px; }
   .marca-tag { display: none; }
   nav.abas { flex-direction: row; overflow-x: auto; padding: 8px 10px; }
-  nav.abas button { border-left: none; border-bottom: 2px solid transparent; border-radius: 6px 6px 0 0; }
-  nav.abas button[aria-selected="true"] { border-left-color: transparent; border-bottom-color: var(--marca-dourado); }
 }
 
 .cartao {
   background: var(--surface); border: 1px solid var(--border);
-  border-radius: var(--raio); padding: 18px 20px;
+  border-radius: var(--raio); padding: 18px 20px; box-shadow: var(--sombra);
 }
+.subpainel-config .cartao { max-width: 720px; }
 .grade { display: grid; gap: 14px; }
 .g-kpi { grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); }
 .g-2 { grid-template-columns: repeat(auto-fit, minmax(330px, 1fr)); }
@@ -285,13 +289,18 @@ td.nome { font-weight: 600; text-align: left; }
 .p-meio { background: color-mix(in srgb, var(--s1) 13%, transparent); color: var(--s1); }
 .p-fim { background: color-mix(in srgb, var(--crit) 13%, transparent); color: var(--crit); }
 
-.subabas { display: flex; gap: 5px; flex-wrap: wrap; margin-bottom: 13px; }
+.subabas {
+  display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 18px;
+  background: var(--plane); border: 1px solid var(--border); border-radius: 999px; padding: 4px;
+  width: fit-content;
+}
 .subabas button {
-  background: transparent; border: 1px solid var(--border); border-radius: 8px;
-  padding: 7px 13px; font: inherit; font-size: 12.5px; font-weight: 600;
+  background: transparent; border: none; border-radius: 999px;
+  padding: 8px 16px; font: inherit; font-size: 12.8px; font-weight: 600;
   color: var(--ink2); cursor: pointer;
 }
-.subabas button[aria-selected="true"] { background: var(--s1); color: #fff; border-color: var(--s1); }
+.subabas button:hover { color: var(--ink); }
+.subabas button[aria-selected="true"] { background: var(--surface); color: var(--ink); box-shadow: var(--sombra); }
 .subabas button .n { opacity: .65; margin-left: 5px; }
 
 .vazio { padding: 26px; text-align: center; color: var(--muted); font-size: 12.5px; }

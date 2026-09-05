@@ -106,6 +106,7 @@ async function iniciar() {
     }
   }
   configurarAbas();
+  configurarSubabasConfig();
   configurarLeads();
   configurarConfig();
   configurarUsuarios();
@@ -138,6 +139,21 @@ function configurarAbas() {
     if (btn.dataset.aba === 'config') await carregarConfig();
     if (btn.dataset.aba === 'usuarios') await carregarUsuarios();
     if (btn.dataset.aba === 'auditoria') await carregarAuditoria();
+  });
+}
+
+function configurarSubabasConfig() {
+  const secoes = {
+    persona: document.getElementById('cfg-persona'),
+    regras: document.getElementById('cfg-regras'),
+    qualificacao: document.getElementById('cfg-qualificacao'),
+    alerta: document.getElementById('cfg-alerta'),
+  };
+  document.getElementById('subabas-config').addEventListener('click', (ev) => {
+    const btn = ev.target.closest('button[data-subaba]');
+    if (!btn) return;
+    for (const b of document.querySelectorAll('#subabas-config button')) b.setAttribute('aria-selected', String(b === btn));
+    for (const [nome, el] of Object.entries(secoes)) el.hidden = nome !== btn.dataset.subaba;
   });
 }
 

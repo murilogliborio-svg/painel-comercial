@@ -170,7 +170,14 @@
 
   <!-- --------------------------------------------------------- Configuração -->
   <section id="painel-config" hidden>
-    <div class="grade g-2">
+    <div class="subabas" id="subabas-config">
+      <button data-subaba="persona" aria-selected="true">Persona</button>
+      <button data-subaba="regras">Regras de envio</button>
+      <button data-subaba="qualificacao">Qualificação</button>
+      <button data-subaba="alerta">Aviso de resposta</button>
+    </div>
+
+    <div class="subpainel-config" id="cfg-persona">
       <div class="cartao">
         <h3>Persona da I.A.</h3>
         <p class="lede">Como a I.A. se apresenta e o tom que ela deve manter em toda mensagem.</p>
@@ -186,7 +193,9 @@
           <button class="btn btn-largo" type="submit">Salvar persona</button>
         </form>
       </div>
+    </div>
 
+    <div class="subpainel-config" id="cfg-regras" hidden>
       <div class="cartao">
         <h3>Regras de envio autônomo</h3>
         <p class="lede">A I.A. só envia dentro destes limites. Na dúvida, ela não envia.</p>
@@ -217,7 +226,9 @@
         </form>
         <button class="btn btn-secundario btn-largo mt-10" id="btn-varredura">Disparar varredura agora</button>
       </div>
+    </div>
 
+    <div class="subpainel-config" id="cfg-qualificacao" hidden>
       <div class="cartao">
         <h3>Qualificação por I.A. após resposta</h3>
         <p class="lede">
@@ -238,7 +249,9 @@
           <button class="btn btn-largo mt-16" type="submit">Salvar qualificação</button>
         </form>
       </div>
+    </div>
 
+    <div class="subpainel-config" id="cfg-alerta" hidden>
       <div class="cartao">
         <h3>Aviso de resposta (WhatsApp)</h3>
         <p class="lede">
