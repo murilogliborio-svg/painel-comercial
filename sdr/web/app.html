@@ -3,28 +3,64 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>SDR de I.A.</title>
+<title>Di Terrá — SDR de I.A.</title>
 <link rel="icon" href="/favicon.ico">
 <link rel="stylesheet" href="/assets/app.css">
 </head>
 <body>
-<header class="topo">
-  <div class="topo-int">
-    <div class="marca">SDR de I.A. <span>aquecimento de clientes</span></div>
-    <div class="topo-dir">
-      <div class="quem"><b id="quem-nome">—</b><span id="quem-papel"></span></div>
-      <button class="btn btn-secundario btn-mini" id="btn-sair">Sair</button>
+<div class="shell">
+  <aside class="lateral">
+    <div class="lateral-marca">
+      <div class="marca-wordmark"><span class="di">DI</span><span class="terra">TERRÁ</span></div>
+      <div class="marca-tag">SDR de I.A.</div>
     </div>
-  </div>
-  <nav class="abas" id="abas">
-    <button data-aba="leads" aria-selected="true">Leads</button>
-    <button data-aba="config" id="aba-config" hidden>Configuração</button>
-    <button data-aba="usuarios" id="aba-usuarios" hidden>Usuários</button>
-    <button data-aba="auditoria" id="aba-auditoria" hidden>Auditoria</button>
-  </nav>
-</header>
+    <nav class="abas" id="abas">
+      <button data-aba="leads" aria-selected="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M21 12c0 4.4-4 8-9 8-1.1 0-2.1-.16-3-.46L3 21l1.5-4C3.6 15.7 3 13.9 3 12c0-4.4 4-8 9-8s9 3.6 9 8Z"/>
+        </svg>
+        <span>Leads</span>
+      </button>
+      <button data-aba="config" id="aba-config" hidden>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/>
+        </svg>
+        <span>Configuração</span>
+      </button>
+      <button data-aba="usuarios" id="aba-usuarios" hidden>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M16 19v-1a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v1"/>
+          <circle cx="8" cy="7" r="3.2"/>
+          <path d="M22 19v-1a3.5 3.5 0 0 0-2.5-3.36M15.5 4.16a3.5 3.5 0 0 1 0 6.68"/>
+        </svg>
+        <span>Usuários</span>
+      </button>
+      <button data-aba="auditoria" id="aba-auditoria" hidden>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <rect x="6" y="4" width="12" height="17" rx="2"/>
+          <path d="M9 4V3a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v1M9 11h6M9 15h6M9 19h3"/>
+        </svg>
+        <span>Auditoria</span>
+      </button>
+    </nav>
+  </aside>
 
-<main>
+  <div class="area-principal">
+    <header class="topo">
+      <div class="topo-int">
+        <div class="titulo-pagina" id="titulo-pagina">Leads</div>
+        <div class="topo-dir">
+          <div class="quem-chip">
+            <span class="avatar avatar-sm" id="quem-avatar"></span>
+            <div class="quem"><b id="quem-nome">—</b><span id="quem-papel"></span></div>
+          </div>
+          <button class="btn btn-secundario btn-mini" id="btn-sair">Sair</button>
+        </div>
+      </div>
+    </header>
+
+    <main>
   <div id="aviso-global" class="aviso escondido"></div>
 
   <!-- ------------------------------------------------------------ Leads -->
@@ -261,7 +297,9 @@
       </table>
     </div>
   </section>
-</main>
+    </main>
+  </div>
+</div>
 
 <div class="modal-fundo escondido" id="modal-fundo">
   <div class="modal">

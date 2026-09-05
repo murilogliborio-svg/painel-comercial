@@ -97,6 +97,9 @@ async function iniciar() {
   }
   document.getElementById('quem-nome').textContent = EU.nome;
   document.getElementById('quem-papel').textContent = EU.papel;
+  const quemAvatar = document.getElementById('quem-avatar');
+  quemAvatar.textContent = iniciais(EU.nome);
+  quemAvatar.classList.add(classeAvatar(EU.nome));
   if (EU.papel === 'admin') {
     for (const id of ['aba-config', 'aba-usuarios', 'aba-auditoria']) {
       document.getElementById(id).hidden = false;
@@ -131,6 +134,7 @@ function configurarAbas() {
     if (!btn) return;
     for (const b of document.querySelectorAll('#abas button')) b.setAttribute('aria-selected', String(b === btn));
     for (const [nome, el] of Object.entries(secoes)) el.hidden = nome !== btn.dataset.aba;
+    document.getElementById('titulo-pagina').textContent = btn.querySelector('span').textContent;
     if (btn.dataset.aba === 'config') await carregarConfig();
     if (btn.dataset.aba === 'usuarios') await carregarUsuarios();
     if (btn.dataset.aba === 'auditoria') await carregarAuditoria();

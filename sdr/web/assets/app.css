@@ -27,6 +27,14 @@
   --wa-entrada: #ffffff;
   --wa-tique: #8b98a0;
   --wa-tique-lida: #53bdeb;
+
+  /* Identidade Di Terrá — mesma em claro/escuro, é a "casca" da marca. */
+  --marca-navy: #1c1a34;
+  --marca-navy2: #131226;
+  --marca-linha: rgba(255, 255, 255, .1);
+  --marca-ink: #f5f3ee;
+  --marca-muted: #a49dc0;
+  --marca-dourado: #c9a969;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -64,8 +72,13 @@ h1, h2, h3 { letter-spacing: -.02em; margin: 0; }
   min-height: 100vh;
   display: grid;
   place-items: center;
+  gap: 26px;
   padding: 24px;
+  background: linear-gradient(160deg, var(--marca-navy), var(--marca-navy2));
 }
+.marca-wordmark-lg { font-size: 1.5em; }
+.marca-wordmark-lg .terra { font-size: 30px; }
+.marca-wordmark-lg .di { font-size: 15px; }
 .login-cartao {
   width: 100%;
   max-width: 400px;
@@ -112,34 +125,65 @@ textarea { resize: vertical; min-height: 76px; }
 
 /* --------------------------------------------------------------- layout */
 
+.shell { display: flex; min-height: 100vh; align-items: stretch; }
+
+.lateral {
+  flex: none; width: 232px;
+  background: linear-gradient(180deg, var(--marca-navy), var(--marca-navy2));
+  display: flex; flex-direction: column;
+  position: sticky; top: 0; height: 100vh; overflow-y: auto; z-index: 20;
+}
+.lateral-marca { padding: 24px 22px 20px; border-bottom: 1px solid var(--marca-linha); }
+.marca-wordmark {
+  font-family: Georgia, 'Iowan Old Style', 'Palatino Linotype', 'Book Antiqua', serif;
+  color: var(--marca-ink); display: flex; align-items: baseline; gap: 7px; white-space: nowrap;
+}
+.marca-wordmark .di {
+  font-size: 12px; letter-spacing: .16em; border-bottom: 1px solid var(--marca-dourado); padding-bottom: 3px;
+}
+.marca-wordmark .terra { font-size: 21px; letter-spacing: .09em; }
+.marca-tag { font-size: 10.5px; color: var(--marca-muted); letter-spacing: .03em; margin-top: 6px; }
+
+nav.abas { display: flex; flex-direction: column; gap: 2px; padding: 14px 12px; flex: 1; }
+nav.abas button {
+  display: flex; align-items: center; gap: 11px; text-align: left;
+  background: none; border: none; border-left: 3px solid transparent; border-radius: 8px;
+  padding: 10px 11px; font: inherit; font-weight: 600; font-size: 13px;
+  color: var(--marca-muted); cursor: pointer; white-space: nowrap;
+}
+nav.abas button svg { flex: none; width: 17px; height: 17px; }
+nav.abas button:hover { color: var(--marca-ink); background: rgba(255, 255, 255, .05); }
+nav.abas button[aria-selected="true"] {
+  color: var(--marca-ink); background: rgba(255, 255, 255, .08); border-left-color: var(--marca-dourado);
+}
+
+.area-principal { flex: 1; min-width: 0; }
+
 .topo {
   background: var(--surface);
   border-bottom: 1px solid var(--border);
-  position: sticky; top: 0; z-index: 20;
+  position: sticky; top: 0; z-index: 15;
 }
 .topo-int {
-  max-width: 1240px; margin: 0 auto; padding: 11px 20px;
+  margin: 0 auto; padding: 13px 24px;
   display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
 }
-.marca { font-weight: 700; font-size: 15px; }
-.marca span { color: var(--muted); font-weight: 400; margin-left: 8px; font-size: 12.5px; }
-.topo-dir { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+.titulo-pagina { font-size: 17px; font-weight: 700; letter-spacing: -.01em; }
+.topo-dir { margin-left: auto; display: flex; align-items: center; gap: 12px; }
 .quem { font-size: 12.5px; color: var(--ink2); text-align: right; line-height: 1.35; }
 .quem b { display: block; color: var(--ink); }
 
-nav.abas {
-  max-width: 1240px; margin: 0 auto; padding: 0 20px;
-  display: flex; gap: 3px; overflow-x: auto;
-}
-nav.abas button {
-  background: none; border: none; border-bottom: 2px solid transparent;
-  padding: 11px 13px; font: inherit; font-weight: 600; font-size: 13px;
-  color: var(--ink2); cursor: pointer; white-space: nowrap;
-}
-nav.abas button:hover { color: var(--ink); }
-nav.abas button[aria-selected="true"] { color: var(--s1); border-bottom-color: var(--s1); }
+main { max-width: 1240px; margin: 0 auto; padding: 22px 24px 80px; }
 
-main { max-width: 1240px; margin: 0 auto; padding: 22px 20px 80px; }
+@media (max-width: 900px) {
+  .shell { flex-direction: column; }
+  .lateral { width: auto; height: auto; position: static; flex-direction: row; align-items: center; }
+  .lateral-marca { border-bottom: none; border-right: 1px solid var(--marca-linha); padding: 14px 16px; }
+  .marca-tag { display: none; }
+  nav.abas { flex-direction: row; overflow-x: auto; padding: 8px 10px; }
+  nav.abas button { border-left: none; border-bottom: 2px solid transparent; border-radius: 6px 6px 0 0; }
+  nav.abas button[aria-selected="true"] { border-left-color: transparent; border-bottom-color: var(--marca-dourado); }
+}
 
 .cartao {
   background: var(--surface); border: 1px solid var(--border);
@@ -318,6 +362,8 @@ td.nome { font-weight: 600; text-align: left; }
   .topo-int { padding: 10px 14px; }
   main { padding: 16px 14px 60px; }
 }
+
+.quem-chip { display: flex; align-items: center; gap: 9px; }
 
 /* login: nota de rodapé (existe como classe porque a CSP proíbe style inline) */
 .rodape-login { margin-top: 22px; font-size: 12px; }
