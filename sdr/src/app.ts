@@ -346,7 +346,7 @@ export function montarApp(db: Db, cfg: Config, dirWeb: string): Aplicacao {
     const telefone = str(c['telefone'], 'telefone', { max: 30, min: 8 });
     const email = str(c['email'], 'email', { max: 200, obrigatorio: false });
     const origem = str(c['origem'], 'origem', { max: 100, obrigatorio: false });
-    const contexto = str(c['contexto'], 'contexto', { max: 2000, obrigatorio: false });
+    const contexto = str(c['contexto'], 'contexto', { max: 8000, obrigatorio: false });
     const responsavelId = str(c['responsavel_id'], 'responsavel_id', { max: 40, obrigatorio: false });
 
     try {
@@ -434,7 +434,7 @@ export function montarApp(db: Db, cfg: Config, dirWeb: string): Aplicacao {
     if (c['nome'] !== undefined) campos['nome'] = str(c['nome'], 'nome', { max: 150 });
     if (c['email'] !== undefined) campos['email'] = str(c['email'], 'email', { max: 200, obrigatorio: false }) || null;
     if (c['origem'] !== undefined) campos['origem'] = str(c['origem'], 'origem', { max: 100, obrigatorio: false }) || null;
-    if (c['contexto'] !== undefined) campos['contexto'] = str(c['contexto'], 'contexto', { max: 2000, obrigatorio: false }) || null;
+    if (c['contexto'] !== undefined) campos['contexto'] = str(c['contexto'], 'contexto', { max: 8000, obrigatorio: false }) || null;
     if (c['responsavel_id'] !== undefined) campos['responsavel_id'] = str(c['responsavel_id'], 'responsavel_id', { max: 40, obrigatorio: false }) || null;
     if (c['estagio'] !== undefined) campos['estagio'] = umDe(c['estagio'], 'estagio', ESTAGIOS);
     if (c['automacao_ativa'] !== undefined) campos['automacao_ativa'] = c['automacao_ativa'] ? 1 : 0;
