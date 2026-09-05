@@ -15,7 +15,7 @@ import {
 } from '../integracoes/whatsapp.ts';
 import {
   leadElegivel, calcularProximaMensagemEm, objetivoDoPasso, nomeTemplateDoPasso, corpoTemplateDoPasso,
-  janelaDeServicoAtiva, contemOptOut, type RegrasEnvio,
+  nomeVariavelDoPasso, janelaDeServicoAtiva, contemOptOut, type RegrasEnvio,
 } from './regras.ts';
 import type { QualificacaoConfig } from './config.ts';
 import {
@@ -131,11 +131,15 @@ export async function processarLead(
       return { leadId: lead.id, enviado: false, motivo: 'template_nao_configurado' };
     }
     const corpoTemplate = corpoTemplateDoPasso(regras, lead.sequencia_passo);
+    const nomeVariavel = nomeVariavelDoPasso(regras, lead.sequencia_passo);
+    const marcador = `{{${nomeVariavel || '1'}}}`;
     texto = corpoTemplate
-      ? corpoTemplate.replaceAll('{{1}}', lead.nome)
+      ? corpoTemplate.replaceAll(marcador, lead.nome)
       : `Mensagem-modelo "${nomeTemplate}" enviada (parâmetro: ${lead.nome}) — cadastre o texto do modelo `
         + 'em Configuração para o painel mostrar a mensagem real.';
-    envio = await enviarTemplate(cfgWhatsapp, lead.telefone, nomeTemplate, regras.idiomaTemplates, [lead.nome]);
+    envio = await enviarTemplate(
+      cfgWhatsapp, lead.telefone, nomeTemplate, regras.idiomaTemplates, [lead.nome], nomeVariavel || null,
+    );
   }
 
   const proximoPasso = lead.sequencia_passo + 1;

@@ -427,14 +427,19 @@ function linhaPasso(passo, idx) {
     </div>
     <div class="linha-form">
       <div class="campo campo-flex3">
-        <label>Texto do modelo aprovado (copie exatamente da Meta, com {{1}} no lugar do nome)</label>
-        <textarea class="p-corpo-template" placeholder="Ex.: Olá {{1}}! Aqui é a Di Terrá..."></textarea>
+        <label>Texto do modelo aprovado (copie exatamente da Meta, com a variável no lugar do nome)</label>
+        <textarea class="p-corpo-template" placeholder="Ex.: Olá {{nome}}! Aqui é a Di Terrá..."></textarea>
+      </div>
+      <div class="campo">
+        <label>Nome da variável no modelo</label>
+        <input type="text" class="p-nome-variavel" placeholder="ex.: nome (deixe em branco se for {{1}})">
       </div>
     </div>`;
   div.querySelector('.p-dias').value = passo.diasDeEspera;
   div.querySelector('.p-objetivo').value = passo.objetivo;
   div.querySelector('.p-template').value = passo.nomeTemplate || '';
   div.querySelector('.p-corpo-template').value = passo.corpoTemplate || '';
+  div.querySelector('.p-nome-variavel').value = passo.nomeVariavel || '';
   div.querySelector('.btn-remover-passo').addEventListener('click', () => div.remove());
   return div;
 }
@@ -461,6 +466,7 @@ function configurarConfig() {
       objetivo: div.querySelector('.p-objetivo').value.trim(),
       nomeTemplate: div.querySelector('.p-template').value.trim(),
       corpoTemplate: div.querySelector('.p-corpo-template').value.trim(),
+      nomeVariavel: div.querySelector('.p-nome-variavel').value.trim(),
     }));
     try {
       await api('/api/config/regras', {

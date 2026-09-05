@@ -30,7 +30,9 @@ export interface RegrasEnvio {
    * propósito do passo) e o modelo (template) aprovado pela Meta a usar —
    * ver `nomeTemplate`.
    */
-  passos: Array<{ diasDeEspera: number; objetivo: string; nomeTemplate: string; corpoTemplate?: string }>;
+  passos: Array<{
+    diasDeEspera: number; objetivo: string; nomeTemplate: string; corpoTemplate?: string; nomeVariavel?: string;
+  }>;
   /**
    * Código de idioma (formato da Meta, ex.: "pt_BR") usado em todo envio de
    * modelo. Um só idioma para todos os passos: mantém simples.
@@ -142,6 +144,16 @@ export function nomeTemplateDoPasso(regras: RegrasEnvio, passo: number): string 
  */
 export function corpoTemplateDoPasso(regras: RegrasEnvio, passo: number): string {
   return regras.passos[passo]?.corpoTemplate?.trim() ?? '';
+}
+
+/**
+ * Nome da variável do modelo, quando o modelo foi criado no formato "nomeado"
+ * da Meta (ex.: {{nome}}) em vez do formato numerado clássico ({{1}}). Vazio
+ * significa formato numerado — a Cloud API não aceita `parameter_name` nesse
+ * caso, só na ordem posicional.
+ */
+export function nomeVariavelDoPasso(regras: RegrasEnvio, passo: number): string {
+  return regras.passos[passo]?.nomeVariavel?.trim() ?? '';
 }
 
 const JANELA_SERVICO_MS = 24 * 3_600_000;

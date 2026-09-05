@@ -85,6 +85,7 @@ export async function enviarTemplate(
   nomeTemplate: string,
   idioma: string,
   parametros: string[],
+  nomeVariavel: string | null = null,
 ): Promise<ResultadoEnvio> {
   if (cfg.modo === 'simulado') {
     return { ok: true, simulado: true, idExterno: null };
@@ -96,7 +97,14 @@ export async function enviarTemplate(
       name: nomeTemplate,
       language: { code: idioma },
       components: parametros.length
-        ? [{ type: 'body', parameters: parametros.map((texto) => ({ type: 'text', text: texto })) }]
+        ? [{
+            type: 'body',
+            parameters: parametros.map((texto) => (
+              nomeVariavel
+                ? { type: 'text', parameter_name: nomeVariavel, text: texto }
+                : { type: 'text', text: texto }
+            )),
+          }]
         : [],
     },
   });
