@@ -14,7 +14,7 @@ export type AcaoAuditavel =
   | 'senha.alterada' | 'senha.redefinida'
   | 'usuario.criado' | 'usuario.alterado' | 'usuario.excluido'
   | 'lead.criado' | 'lead.alterado' | 'lead.pausado' | 'lead.retomado'
-  | 'lead.excluido' | 'leads.importados'
+  | 'lead.excluido' | 'lead.restaurado' | 'lead.excluido_permanente' | 'leads.importados'
   | 'lead.opt_out'
   | 'mensagem.gerada' | 'mensagem.enviada' | 'mensagem.falhou' | 'mensagem.recebida'
   | 'mensagem.bloqueada_por_regra'

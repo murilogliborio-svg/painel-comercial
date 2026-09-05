@@ -30,6 +30,7 @@ export interface Lead {
   criado_por: string;
   criado_em: string;
   atualizado_em: string;
+  excluido_em: string | null;
 }
 
 export interface NovoLead {
@@ -41,10 +42,37 @@ export interface NovoLead {
   responsavelId?: string | null;
 }
 
-export async function criarLead(db: Db, dados: NovoLead, criadoPor: string): Promise<Lead> {
+export interface LeadCriado {
+  lead: Lead;
+  /** true quando o telefone já pertencia a um lead na lixeira e ele foi restaurado (histórico preservado). */
+  restaurado: boolean;
+}
+
+/**
+ * Cria um lead — ou, se o telefone já pertence a um lead na lixeira, restaura
+ * esse lead (atualizando os dados enviados) em vez de tentar duplicar. O
+ * telefone tem índice único, então não tem como coexistir um novo cadastro
+ * com um antigo excluído para o mesmo número — e não faria sentido mesmo:
+ * é a mesma pessoa voltando, o gestor quer ver o histórico dela de novo.
+ */
+export async function criarLead(db: Db, dados: NovoLead, criadoPor: string): Promise<LeadCriado> {
   const agora = new Date().toISOString();
-  const id = ulid();
   const telefone = normalizarTelefone(dados.telefone);
+  const existente = await buscarLeadPorTelefone(db, telefone);
+  if (existente && existente.excluido_em) {
+    await db.run(
+      `UPDATE leads SET nome = ?, email = ?, origem = ?, contexto = ?, responsavel_id = ?,
+                        excluido_em = NULL, atualizado_em = ?
+       WHERE id = ?`,
+      [
+        dados.nome.trim(), dados.email?.trim() || null, dados.origem?.trim() || null,
+        dados.contexto?.trim() || null, dados.responsavelId || null, agora, existente.id,
+      ],
+    );
+    return { lead: (await buscarLead(db, existente.id))!, restaurado: true };
+  }
+
+  const id = ulid();
   await db.run(
     `INSERT INTO leads
        (id, nome, telefone, email, origem, contexto, estagio, responsavel_id,
@@ -57,7 +85,7 @@ export async function criarLead(db: Db, dados: NovoLead, criadoPor: string): Pro
       dados.responsavelId || null, agora, criadoPor, agora, agora,
     ],
   );
-  return (await buscarLead(db, id))!;
+  return { lead: (await buscarLead(db, id))!, restaurado: false };
 }
 
 export interface ResultadoImportacao {
@@ -108,10 +136,12 @@ export interface FiltroLeads {
   estagio?: string | null;
   responsavelId?: string | null;
   busca?: string | null;
+  /** true = mostra só a lixeira (excluídos); default (false/omitido) = esconde a lixeira. */
+  lixeira?: boolean;
 }
 
 export async function listarLeads(db: Db, filtro: FiltroLeads = {}): Promise<Lead[]> {
-  const onde: string[] = [];
+  const onde: string[] = [filtro.lixeira ? 'excluido_em IS NOT NULL' : 'excluido_em IS NULL'];
   const params: (string | number)[] = [];
   if (filtro.estagio) { onde.push('estagio = ?'); params.push(filtro.estagio); }
   if (filtro.responsavelId) { onde.push('responsavel_id = ?'); params.push(filtro.responsavelId); }
@@ -119,7 +149,7 @@ export async function listarLeads(db: Db, filtro: FiltroLeads = {}): Promise<Lea
     onde.push('(nome LIKE ? OR telefone LIKE ?)');
     params.push(`%${filtro.busca}%`, `%${filtro.busca}%`);
   }
-  const clausula = onde.length ? `WHERE ${onde.join(' AND ')}` : '';
+  const clausula = `WHERE ${onde.join(' AND ')}`;
   // Prévia da última mensagem (texto + direção) pra lista de conversas
   // parecer lista de conversas de verdade, não só um cadastro de contatos.
   return db.all<Lead & { ultima_mensagem_texto: string | null; ultima_mensagem_direcao: string | null }>(
@@ -157,8 +187,33 @@ export async function atualizarLead(
   ]);
 }
 
-/** Apaga o lead e todas as mensagens dele (ON DELETE CASCADE) — irreversível. */
+/**
+ * Move o lead para a lixeira — some das listas normais e a automação pausa
+ * (automacao_ativa = 0), mas mensagens e histórico continuam intactos.
+ * Reversível via restaurarLead ou recadastrando o mesmo telefone.
+ */
 export async function excluirLead(db: Db, id: string): Promise<void> {
+  const agora = new Date().toISOString();
+  await db.run(
+    `UPDATE leads SET excluido_em = ?, automacao_ativa = 0, atualizado_em = ? WHERE id = ?`,
+    [agora, agora, id],
+  );
+}
+
+/**
+ * Traz um lead de volta da lixeira, com todo o histórico como estava.
+ * Não reativa a automação sozinho (fica como estava ao excluir) — o gestor
+ * decide se retoma, pelo mesmo botão usado pra pausar/retomar manualmente.
+ */
+export async function restaurarLead(db: Db, id: string): Promise<void> {
+  await db.run(
+    `UPDATE leads SET excluido_em = NULL, atualizado_em = ? WHERE id = ?`,
+    [new Date().toISOString(), id],
+  );
+}
+
+/** Apaga de vez um lead que já estava na lixeira — e as mensagens dele (ON DELETE CASCADE). Irreversível. */
+export async function excluirLeadPermanente(db: Db, id: string): Promise<void> {
   await db.run('DELETE FROM leads WHERE id = ?', [id]);
 }
 

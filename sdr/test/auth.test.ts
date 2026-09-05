@@ -96,7 +96,7 @@ describe('RBAC: comercial não acessa rotas de admin', () => {
     assert.equal(lista.corpo.leads.length, 1);
   });
 
-  test('excluir lead apaga ele e a conversa, e é irreversível (404 depois)', async () => {
+  test('excluir lead move pra lixeira (reversível) — some da lista, mensagens continuam intactas', async () => {
     await amb.criarUsuario({ email: 'com3@teste.com', papel: 'comercial' });
     const cli = amb.cliente();
     await cli.login('com3@teste.com');
@@ -112,8 +112,31 @@ describe('RBAC: comercial não acessa rotas de admin', () => {
     const excluido = await cli.req('DELETE', `/api/leads/${id}`);
     assert.equal(excluido.status, 200);
 
+    // Some da lista normal, mas continua acessível por id, com o histórico intacto.
+    const listaNormal = await cli.req('GET', '/api/leads');
+    assert.ok(!listaNormal.corpo.leads.some((l: { id: string }) => l.id === id));
+
     const depois = await cli.req('GET', `/api/leads/${id}`);
-    assert.equal(depois.status, 404);
+    assert.equal(depois.status, 200);
+    assert.ok(depois.corpo.lead.excluido_em);
+    assert.equal(depois.corpo.mensagens.length, 1);
+
+    // Aparece na lixeira.
+    const lixeira = await cli.req('GET', '/api/leads?lixeira=1');
+    assert.ok(lixeira.corpo.leads.some((l: { id: string }) => l.id === id));
+
+    // Restaurar traz de volta pra lista normal, histórico como estava.
+    const restaurado = await cli.req('POST', `/api/leads/${id}/restaurar`);
+    assert.equal(restaurado.status, 200);
+    const listaDepoisRestaurar = await cli.req('GET', '/api/leads');
+    assert.ok(listaDepoisRestaurar.corpo.leads.some((l: { id: string }) => l.id === id));
+
+    // Excluir de novo e apagar permanentemente — aí sim é irreversível.
+    await cli.req('DELETE', `/api/leads/${id}`);
+    const permanente = await cli.req('DELETE', `/api/leads/${id}/permanente`);
+    assert.equal(permanente.status, 200);
+    const apos = await cli.req('GET', `/api/leads/${id}`);
+    assert.equal(apos.status, 404);
 
     // Mensagens somem junto (ON DELETE CASCADE) — confirma direto no banco,
     // já que a rota que as listava não existe mais pra esse lead.

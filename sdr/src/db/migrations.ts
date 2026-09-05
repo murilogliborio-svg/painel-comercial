@@ -154,11 +154,22 @@ VALUES (
 );
 `;
 
+const DDL_0005 = `
+-- Lixeira de leads: excluir passa a ser reversível. Um lead "excluído" só
+-- fica escondido das listas normais (excluido_em NOT NULL) — mensagens e
+-- histórico continuam intactos, e o telefone permanece bloqueado pra outro
+-- cadastro (é o mesmo lead voltando, não um novo). Ver leads.ts: criarLead
+-- restaura em vez de duplicar quando o telefone bate com um lead na lixeira.
+ALTER TABLE leads ADD COLUMN excluido_em TEXT NULL;
+CREATE INDEX idx_leads_excluido ON leads(excluido_em);
+`;
+
 export const MIGRATIONS: Migration[] = [
   { id: '0001_schema_inicial', sqlite: DDL },
   { id: '0002_status_entrega', sqlite: DDL_0002 },
   { id: '0003_qualificacao_ia', sqlite: DDL_0003 },
   { id: '0004_usuario_sistema', sqlite: DDL_0004 },
+  { id: '0005_lixeira_leads', sqlite: DDL_0005 },
 ];
 
 export async function migrate(db: Db, log: (m: string) => void = () => {}): Promise<string[]> {

@@ -129,8 +129,13 @@
           </select>
         </div>
       </div>
+      <button type="button" class="btn btn-secundario btn-mini" id="btn-toggle-lixeira" aria-pressed="false">Lixeira</button>
       <button class="btn btn-secundario" id="btn-importar-leads">Importar planilha</button>
       <button class="btn" id="btn-novo-lead">+ Novo lead</button>
+    </div>
+
+    <div class="aviso a-alerta escondido" id="aviso-lixeira">
+      <p>Mostrando leads excluídos. Clique em "Lixeira" de novo para voltar à lista normal.</p>
     </div>
 
     <div class="layout-leads">
@@ -180,10 +185,14 @@
                 <textarea id="lead-contexto" placeholder="Ex.: interessado em evento de 150 pessoas em outubro"></textarea>
               </div>
             </div>
-            <div class="mt-12 flex-row-gap8-wrap">
+            <div class="mt-12 flex-row-gap8-wrap" id="acoes-lead-normal">
               <button class="btn btn-secundario btn-mini" id="btn-salvar-lead">Salvar</button>
               <button class="btn btn-secundario btn-mini" id="btn-toggle-automacao">—</button>
               <button class="btn btn-perigo btn-mini" id="btn-excluir-lead">Excluir lead</button>
+            </div>
+            <div class="mt-12 flex-row-gap8-wrap escondido" id="acoes-lead-lixeira">
+              <button class="btn btn-mini" id="btn-restaurar-lead">Restaurar lead</button>
+              <button class="btn btn-perigo btn-mini" id="btn-excluir-permanente-lead">Excluir permanentemente</button>
             </div>
             <dl class="chave-valor mt-14">
               <dt>Origem</dt><dd id="lead-origem">—</dd>

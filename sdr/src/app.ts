@@ -27,14 +27,14 @@ import {
 } from './auth/contexto.ts';
 import {
   criarLead, buscarLead, buscarLeadPorTelefone, listarLeads, atualizarLead,
-  excluirLead, importarLeads, listarMensagens, atualizarStatusEntrega,
+  excluirLead, restaurarLead, excluirLeadPermanente, importarLeads, listarMensagens, atualizarStatusEntrega,
 } from './domain/leads.ts';
 import { parseCsv, mapearLinhasCsv } from './lib/csv.ts';
 import {
   obterPersona, definirPersona, obterRegras, definirRegras, obterQualificacao, definirQualificacao,
   obterAlerta, definirAlerta,
 } from './domain/config.ts';
-import { tratarMensagemRecebida, varrerLeadsDevidos } from './domain/mensagens.ts';
+import { tratarMensagemRecebida, varrerLeadsDevidos, processarLead } from './domain/mensagens.ts';
 import { janelaDeServicoAtiva } from './domain/regras.ts';
 import {
   verificarWebhook, extrairMensagensInbound, extrairStatusMensagens, normalizarTelefone,
@@ -331,8 +331,10 @@ export function montarApp(db: Db, cfg: Config, dirWeb: string): Aplicacao {
     const estagio = req.query.get('estagio');
     const responsavel = req.query.get('responsavel');
     const busca = req.query.get('busca');
+    const lixeira = req.query.get('lixeira');
     const leads = await listarLeads(db, {
       estagio: estagio || null, responsavelId: responsavel || null, busca: busca || null,
+      lixeira: lixeira === '1',
     });
     return { status: 200, corpo: { leads } };
   });
@@ -348,13 +350,31 @@ export function montarApp(db: Db, cfg: Config, dirWeb: string): Aplicacao {
     const responsavelId = str(c['responsavel_id'], 'responsavel_id', { max: 40, obrigatorio: false });
 
     try {
-      const lead = await criarLead(db, {
+      const { lead, restaurado } = await criarLead(db, {
         nome, telefone, email: email || null, origem: origem || null,
         contexto: contexto || null, responsavelId: responsavelId || null,
       }, a.usuario.id);
-      await auditor({ acao: 'lead.criado', userId: a.usuario.id, email: a.usuario.email,
-        entidade: 'lead', entidadeId: lead.id, ip: req.ip, userAgent: req.userAgent });
-      return { status: 201, corpo: { lead } };
+      await auditor({ acao: restaurado ? 'lead.restaurado' : 'lead.criado', userId: a.usuario.id,
+        email: a.usuario.email, entidade: 'lead', entidadeId: lead.id, ip: req.ip, userAgent: req.userAgent });
+
+      // Tenta mandar a primeira mensagem já na hora, em vez de esperar a
+      // próxima varredura periódica (até alguns minutos) — só sai de fato se
+      // as regras permitirem agora (horário comercial, teto diário etc.); um
+      // lead restaurado com automação pausada simplesmente não é elegível
+      // ainda, sem efeito colateral. Nunca lança: falha aqui não pode
+      // impedir o cadastro de ter sido concluído com sucesso.
+      try {
+        const persona = await obterPersona(db);
+        const regras = await obterRegras(db);
+        await processarLead(db, lead, persona, regras, cfg.ia, cfg.whatsapp, auditor);
+      } catch (e) {
+        console.error(JSON.stringify({
+          nivel: 'erro', msg: 'disparo imediato ao criar lead falhou', leadId: lead.id, erro: String(e),
+        }));
+      }
+
+      const leadAtual = await buscarLead(db, lead.id);
+      return { status: 201, corpo: { lead: leadAtual, restaurado } };
     } catch (e) {
       if ((e as Error).name === 'UniqueViolation') {
         throw erro.conflito('Já existe um lead cadastrado com esse telefone.');
@@ -428,7 +448,7 @@ export function montarApp(db: Db, cfg: Config, dirWeb: string): Aplicacao {
     return { status: 200, corpo: { ok: true } };
   });
 
-  /** Apaga o lead e toda a conversa dele — irreversível, por isso pede confirmação na tela. */
+  /** Move o lead pra lixeira — reversível (ver /restaurar), histórico continua intacto. */
   r.delete('/api/leads/:id', async (req): Promise<Resposta> => {
     const a = exigirAuth(req);
     const id = str(req.params['id'], 'id', { max: 40 });
@@ -437,6 +457,36 @@ export function montarApp(db: Db, cfg: Config, dirWeb: string): Aplicacao {
     await excluirLead(db, id);
     await auditor({
       acao: 'lead.excluido', userId: a.usuario.id, email: a.usuario.email,
+      entidade: 'lead', entidadeId: id, ip: req.ip, userAgent: req.userAgent,
+      detalhe: { nome: lead.nome, telefone: lead.telefone },
+    });
+    return { status: 200, corpo: { ok: true } };
+  });
+
+  /** Traz um lead de volta da lixeira, com o histórico como estava. */
+  r.post('/api/leads/:id/restaurar', async (req): Promise<Resposta> => {
+    const a = exigirAuth(req);
+    const id = str(req.params['id'], 'id', { max: 40 });
+    const lead = await buscarLead(db, id);
+    if (!lead || !lead.excluido_em) throw erro.naoEncontrado('Lead não encontrado na lixeira.');
+    await restaurarLead(db, id);
+    await auditor({
+      acao: 'lead.restaurado', userId: a.usuario.id, email: a.usuario.email,
+      entidade: 'lead', entidadeId: id, ip: req.ip, userAgent: req.userAgent,
+      detalhe: { nome: lead.nome, telefone: lead.telefone },
+    });
+    return { status: 200, corpo: { ok: true } };
+  });
+
+  /** Apaga de vez um lead que já está na lixeira — e toda a conversa dele. Irreversível. */
+  r.delete('/api/leads/:id/permanente', async (req): Promise<Resposta> => {
+    const a = exigirAuth(req);
+    const id = str(req.params['id'], 'id', { max: 40 });
+    const lead = await buscarLead(db, id);
+    if (!lead || !lead.excluido_em) throw erro.naoEncontrado('Lead não encontrado na lixeira.');
+    await excluirLeadPermanente(db, id);
+    await auditor({
+      acao: 'lead.excluido_permanente', userId: a.usuario.id, email: a.usuario.email,
       entidade: 'lead', entidadeId: id, ip: req.ip, userAgent: req.userAgent,
       detalhe: { nome: lead.nome, telefone: lead.telefone },
     });
@@ -720,9 +770,14 @@ export function montarApp(db: Db, cfg: Config, dirWeb: string): Aplicacao {
           // (não faz sentido "aquecer" quem já chamou primeiro), mas pode
           // entrar na qualificação por I.A. normalmente, já que essa fase é
           // sempre reativa a uma mensagem do próprio lead.
-          lead = await criarLead(db, {
+          lead = (await criarLead(db, {
             nome: normalizarTelefone(m.telefone), telefone: m.telefone, origem: 'whatsapp_inbound',
-          }, 'sistema');
+          }, 'sistema')).lead;
+        } else if (lead.excluido_em) {
+          // Lead estava na lixeira e voltou a escrever — traz de volta pra
+          // ele aparecer na tela de novo junto com o histórico anterior.
+          await restaurarLead(db, lead.id);
+          lead = (await buscarLead(db, lead.id))!;
         }
         await tratarMensagemRecebida(
           db, auditor, lead, m.texto, regras, qualificacao, persona, cfg.ia,

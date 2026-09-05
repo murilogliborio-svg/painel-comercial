@@ -254,6 +254,44 @@ function configurarLeads() {
     document.getElementById('btn-toggle-busca').setAttribute('aria-expanded', String(abrindo));
   });
 
+  document.getElementById('btn-toggle-lixeira').addEventListener('click', async () => {
+    MOSTRANDO_LIXEIRA = !MOSTRANDO_LIXEIRA;
+    document.getElementById('btn-toggle-lixeira').setAttribute('aria-pressed', String(MOSTRANDO_LIXEIRA));
+    document.getElementById('aviso-lixeira').classList.toggle('escondido', !MOSTRANDO_LIXEIRA);
+    document.getElementById('painel-lead').classList.add('escondido');
+    document.getElementById('painel-lead-vazio').classList.remove('escondido');
+    LEAD_ATUAL = null;
+    await carregarLeads();
+  });
+
+  document.getElementById('btn-restaurar-lead').addEventListener('click', async () => {
+    if (!LEAD_ATUAL) return;
+    try {
+      await api(`/api/leads/${LEAD_ATUAL.id}/restaurar`, { method: 'POST' });
+      avisar('Lead restaurado.');
+      document.getElementById('painel-lead').classList.add('escondido');
+      document.getElementById('painel-lead-vazio').classList.remove('escondido');
+      LEAD_ATUAL = null;
+      await carregarLeads();
+    } catch (e) { avisar(e.message, 'a-erro'); }
+  });
+
+  document.getElementById('btn-excluir-permanente-lead').addEventListener('click', async () => {
+    if (!LEAD_ATUAL) return;
+    const confirma = confirm(
+      `Excluir "${LEAD_ATUAL.nome}" e toda a conversa PERMANENTEMENTE? Essa ação não pode ser desfeita.`,
+    );
+    if (!confirma) return;
+    try {
+      await api(`/api/leads/${LEAD_ATUAL.id}/permanente`, { method: 'DELETE' });
+      avisar('Lead excluído permanentemente.');
+      document.getElementById('painel-lead').classList.add('escondido');
+      document.getElementById('painel-lead-vazio').classList.remove('escondido');
+      LEAD_ATUAL = null;
+      await carregarLeads();
+    } catch (e) { avisar(e.message, 'a-erro'); }
+  });
+
   document.getElementById('btn-novo-lead').addEventListener('click', () => {
     document.getElementById('form-lead').reset();
     document.getElementById('modal-fundo').classList.remove('escondido');
@@ -376,6 +414,8 @@ function configurarLeads() {
   });
 }
 
+let MOSTRANDO_LIXEIRA = false;
+
 async function carregarLeads() {
   const busca = val('filtro-busca');
   const estagio = val('filtro-estagio');
@@ -384,6 +424,7 @@ async function carregarLeads() {
   if (busca) q.set('busca', busca);
   if (estagio) q.set('estagio', estagio);
   if (responsavel) q.set('responsavel', responsavel);
+  if (MOSTRANDO_LIXEIRA) q.set('lixeira', '1');
   const j = await api(`/api/leads?${q.toString()}`);
   renderLista(j.leads);
 }
@@ -462,6 +503,10 @@ async function abrirLead(id, { silencioso = false } = {}) {
   const btnAuto = document.getElementById('btn-toggle-automacao');
   btnAuto.textContent = LEAD_ATUAL.automacao_ativa ? 'Pausar automação' : 'Retomar automação';
   btnAuto.disabled = !!LEAD_ATUAL.opt_out;
+
+  const naLixeira = !!LEAD_ATUAL.excluido_em;
+  document.getElementById('acoes-lead-normal').classList.toggle('escondido', naLixeira);
+  document.getElementById('acoes-lead-lixeira').classList.toggle('escondido', !naLixeira);
 
   document.getElementById('aviso-janela').classList.toggle('escondido', janelaAberta(LEAD_ATUAL.ultima_resposta_em));
 
