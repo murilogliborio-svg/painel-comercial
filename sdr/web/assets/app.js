@@ -582,6 +582,7 @@ function configurarConfig() {
         body: {
           nomeEmpresa: val('p-empresa'), nomeAtendente: val('p-atendente'),
           tom: val('p-tom'), diretrizes: val('p-diretrizes'),
+          conhecimento: val('p-conhecimento'),
         },
       });
       avisar('Persona salva.');
@@ -666,6 +667,7 @@ async function carregarConfig() {
   document.getElementById('p-atendente').value = persona.nomeAtendente;
   document.getElementById('p-tom').value = persona.tom;
   document.getElementById('p-diretrizes').value = persona.diretrizes;
+  document.getElementById('p-conhecimento').value = persona.conhecimento || '';
 
   document.getElementById('al-ativo').checked = alerta.ativo;
   document.getElementById('al-telefone').value = alerta.telefone;

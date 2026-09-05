@@ -560,7 +560,8 @@ export function montarApp(db: Db, cfg: Config, dirWeb: string): Aplicacao {
       nomeEmpresa: str(c['nomeEmpresa'], 'nomeEmpresa', { max: 150 }),
       nomeAtendente: str(c['nomeAtendente'], 'nomeAtendente', { max: 150 }),
       tom: str(c['tom'], 'tom', { max: 500 }),
-      diretrizes: str(c['diretrizes'], 'diretrizes', { max: 2000, obrigatorio: false }),
+      diretrizes: str(c['diretrizes'], 'diretrizes', { max: 8000, obrigatorio: false }),
+      conhecimento: str(c['conhecimento'], 'conhecimento', { max: 8000, obrigatorio: false }),
     };
     await definirPersona(db, persona, a.usuario.id);
     await auditor({ acao: 'config.alterada', userId: a.usuario.id, email: a.usuario.email,

@@ -19,6 +19,7 @@ export function personaPadrao(): PersonaConfig {
     nomeAtendente: 'Equipe comercial',
     tom: 'caloroso, direto, próximo — como uma pessoa real do time escrevendo, não um anúncio',
     diretrizes: '',
+    conhecimento: '',
   };
 }
 

@@ -31,6 +31,8 @@ export interface PersonaConfig {
   nomeAtendente: string;
   tom: string;
   diretrizes: string;
+  /** Fatos sobre o negócio (espaços, o que está incluso, como funciona a visita, etc.) — separado de "diretrizes" porque é conhecimento, não comportamento. */
+  conhecimento: string;
 }
 
 export interface ContextoLead {
@@ -57,6 +59,9 @@ function montarSystemPrompt(persona: PersonaConfig): string {
       + 'mensagens de WhatsApp para aquecer um lead (contato comercial) antes de um consultor humano assumir a conversa.',
     `Tom desejado: ${persona.tom}.`,
     persona.diretrizes ? `Diretrizes adicionais definidas pelo gestor: ${persona.diretrizes}` : '',
+    persona.conhecimento
+      ? `Conhecimento sobre o negócio (use só o que estiver aqui; não invente o resto):\n${persona.conhecimento}`
+      : '',
     '',
     'REGRAS FIXAS, NUNCA QUEBRE:',
     '- Escreva em português do Brasil, curto (2 a 4 frases), como quem digita no WhatsApp — não como e-mail.',
@@ -193,6 +198,9 @@ function montarSystemPromptQualificacao(persona: PersonaConfig, objetivo: string
       + 'conversa de verdade e entender o que a pessoa precisa, para o time comercial assumir já sabendo o essencial.',
     `Tom desejado: ${persona.tom}.`,
     persona.diretrizes ? `Diretrizes adicionais definidas pelo gestor: ${persona.diretrizes}` : '',
+    persona.conhecimento
+      ? `Conhecimento sobre o negócio (use só o que estiver aqui; não invente o resto):\n${persona.conhecimento}`
+      : '',
     '',
     `O QUE VOCÊ PRECISA DESCOBRIR: ${objetivo}`,
     '',
