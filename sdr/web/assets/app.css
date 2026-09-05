@@ -144,7 +144,8 @@ textarea { resize: vertical; min-height: 76px; }
   cursor: pointer; padding: 6px; border-radius: 8px;
 }
 .btn-hamburguer:hover { background: rgba(255, 255, 255, .08); }
-.btn-hamburguer svg { display: block; width: 22px; height: 22px; }
+.btn-hamburguer svg { display: block; width: 20px; height: 20px; transition: transform .18s ease; }
+.btn-hamburguer[aria-expanded="true"] svg { transform: rotate(90deg); }
 .marca-wordmark {
   font-family: Georgia, 'Iowan Old Style', 'Palatino Linotype', 'Book Antiqua', serif;
   color: var(--marca-ink); display: flex; align-items: baseline; gap: 7px; white-space: nowrap;
@@ -195,11 +196,16 @@ main { max-width: 1240px; margin: 0 auto; padding: 22px 24px 80px; }
 
 @media (max-width: 900px) {
   .shell { flex-direction: column; }
-  .lateral { width: auto; height: auto; position: static; flex-direction: column; }
+  .lateral { width: auto; height: auto; position: relative; flex-direction: column; z-index: 30; overflow: visible; }
   .lateral-marca { border-bottom: 1px solid var(--marca-linha); padding: 14px 16px; }
   .marca-tag { display: none; }
   .btn-hamburguer { display: inline-flex; }
-  nav.abas { flex-direction: column; padding: 8px 10px 14px; }
+  nav.abas {
+    flex-direction: column; padding: 8px 10px 14px;
+    position: absolute; top: 100%; left: 0; right: 0;
+    background: linear-gradient(180deg, var(--marca-navy), var(--marca-navy2));
+    box-shadow: 0 16px 32px -12px rgba(0, 0, 0, .5);
+  }
 }
 
 .cartao {
@@ -399,9 +405,17 @@ td.nome { font-weight: 600; text-align: left; }
 .barra-leads { align-items: flex-end; }
 .filtros-leads { display: flex; gap: 10px; flex-wrap: wrap; }
 .btn-toggle-busca { display: none; }
+.btn-toggle-busca svg { width: 14px; height: 14px; transition: transform .18s ease; }
+.btn-toggle-busca[aria-expanded="true"] svg { transform: rotate(90deg); }
 @media (max-width: 900px) {
-  .btn-toggle-busca { display: inline-flex; }
-  .filtros-leads { width: 100%; order: 10; }
+  .barra-leads { position: relative; }
+  .btn-toggle-busca { display: inline-flex; order: 1; margin-left: auto; }
+  .filtros-leads {
+    display: none; position: absolute; top: 100%; left: 0; right: 0; margin-top: 8px; z-index: 25;
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--raio);
+    padding: 14px; box-shadow: var(--sombra);
+  }
+  .filtros-leads:not(.escondido) { display: flex; }
 }
 
 /* ------------------------------------------------------------- avatares -- */

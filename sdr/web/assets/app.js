@@ -248,7 +248,10 @@ function configurarLeads() {
     document.getElementById('filtros-leads').classList.add('escondido');
   }
   document.getElementById('btn-toggle-busca').addEventListener('click', () => {
-    document.getElementById('filtros-leads').classList.toggle('escondido');
+    const filtros = document.getElementById('filtros-leads');
+    const abrindo = filtros.classList.contains('escondido');
+    filtros.classList.toggle('escondido');
+    document.getElementById('btn-toggle-busca').setAttribute('aria-expanded', String(abrindo));
   });
 
   document.getElementById('btn-novo-lead').addEventListener('click', () => {
