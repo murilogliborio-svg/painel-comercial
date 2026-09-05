@@ -268,6 +268,10 @@ async function processarQualificacao(
     geradaPorIa: true, idExterno: envio.idExterno,
   });
 
+  if (resposta.estaOferecendoAgendamento) {
+    await enviarAlertaResposta(cfgWhatsapp, alerta, lead, auditor);
+  }
+
   const novoContador = lead.qualificacao_mensagens + 1;
   const capou = novoContador >= qualificacao.maxMensagens;
   if (resposta.qualificacaoCompleta || capou) {

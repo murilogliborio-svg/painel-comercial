@@ -165,6 +165,8 @@ export interface RespostaQualificacao {
   resumo: string | null;
   /** true se o lead perguntou diretamente se está falando com um robô/I.A. — precisa de um humano assumir já. */
   precisaAtencaoHumanaAgora: boolean;
+  /** true se esta mensagem está oferecendo/confirmando um horário de visita — o gestor recebe um aviso, mas a automação continua normalmente. */
+  estaOferecendoAgendamento: boolean;
 }
 
 const FERRAMENTA_QUALIFICACAO = {
@@ -202,6 +204,14 @@ const FERRAMENTA_QUALIFICACAO = {
           + 'automação para na hora e uma pessoa do time assume a conversa. Marque também qualificacao_completa '
           + 'como true.',
       },
+      esta_oferecendo_agendamento: {
+        type: 'boolean',
+        description:
+          'true se esta mensagem está oferecendo, propondo ou confirmando um horário de visita para o lead '
+          + '(ex.: perguntando qual dia funciona, oferecendo dias/horários concretos, confirmando um horário '
+          + 'combinado). O gestor recebe um aviso quando isso acontece, mas a automação continua normalmente — '
+          + 'isso NÃO substitui precisa_atencao_humana_agora nem marca qualificação completa sozinho.',
+      },
     },
     required: ['mensagem', 'qualificacao_completa'],
   },
@@ -237,6 +247,8 @@ function montarSystemPromptQualificacao(persona: PersonaConfig, objetivo: string
     '- Se o lead perguntar diretamente se está falando com um robô, uma inteligência artificial ou um sistema '
       + 'automático, NÃO gere nenhuma resposta pra ele (nem uma evasiva): marque precisa_atencao_humana_agora e '
       + 'qualificacao_completa como true e pare — quem responde a partir daí é uma pessoa do time.',
+    '- Sempre que a mensagem estiver oferecendo, propondo ou confirmando um horário de visita, marque '
+      + 'esta_oferecendo_agendamento como true — o gestor é avisado, mas a conversa segue normalmente.',
     '- Sempre use a ferramenta responder_lead — nunca responda em texto livre fora dela.',
   ].filter(Boolean).join('\n');
 }
@@ -296,6 +308,7 @@ export async function gerarRespostaQualificacao(
   const chamada = json.content?.find((b) => b.type === 'tool_use');
   const entrada = chamada?.input as {
     mensagem?: string; qualificacao_completa?: boolean; resumo?: string; precisa_atencao_humana_agora?: boolean;
+    esta_oferecendo_agendamento?: boolean;
   } | undefined;
   if (!entrada?.mensagem) throw new ErroIA('resposta_vazia', 'A I.A. não devolveu uma mensagem válida.');
 
@@ -305,5 +318,6 @@ export async function gerarRespostaQualificacao(
     qualificacaoCompleta: !!entrada.qualificacao_completa || precisaAtencaoHumanaAgora,
     resumo: entrada.resumo?.trim() || null,
     precisaAtencaoHumanaAgora,
+    estaOferecendoAgendamento: !!entrada.esta_oferecendo_agendamento,
   };
 }
