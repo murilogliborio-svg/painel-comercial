@@ -1,5 +1,9 @@
 /* Painel do SDR de I.A. — sem framework, sem script inline (CSP proíbe). */
 
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js').catch(() => {});
+}
+
 function csrf() {
   const m = document.cookie.match(/(?:^|;\s*)(?:__Host-)?sdr-csrf=([^;]*)/);
   return m ? decodeURIComponent(m[1]) : '';

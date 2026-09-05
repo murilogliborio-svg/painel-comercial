@@ -770,6 +770,8 @@ export function montarApp(db: Db, cfg: Config, dirWeb: string): Aplicacao {
     '.js': 'text/javascript; charset=utf-8',
     '.svg': 'image/svg+xml',
     '.ico': 'image/x-icon',
+    '.png': 'image/png',
+    '.webmanifest': 'application/manifest+json',
   };
 
   async function servir(relativo: string): Promise<Resposta> {
@@ -781,12 +783,13 @@ export function montarApp(db: Db, cfg: Config, dirWeb: string): Aplicacao {
       const bytes = await readFile(destino);
       const etag = `"${createHash('sha1').update(bytes).digest('base64url')}"`;
       const ext = extname(destino).toLowerCase();
+      const semCache = ext === '.html' || relativo === 'sw.js';
       return {
         status: 200,
         buffer: bytes,
         cabecalhos: {
           'Content-Type': TIPOS[ext] ?? 'application/octet-stream',
-          'Cache-Control': ext === '.html' ? 'no-store' : 'public, max-age=300, must-revalidate',
+          'Cache-Control': semCache ? 'no-store' : 'public, max-age=300, must-revalidate',
           ETag: etag,
         },
       };
@@ -800,6 +803,11 @@ export function montarApp(db: Db, cfg: Config, dirWeb: string): Aplicacao {
   r.get('/painel', () => servir('app.html'));
   r.get('/privacidade', () => servir('privacidade.html'));
   r.get('/favicon.ico', () => servir('favicon.svg'));
+  r.get('/manifest.webmanifest', () => servir('manifest.webmanifest'));
+  r.get('/sw.js', () => servir('sw.js'));
+  r.get('/icon-192.png', () => servir('icon-192.png'));
+  r.get('/icon-512.png', () => servir('icon-512.png'));
+  r.get('/apple-touch-icon.png', () => servir('apple-touch-icon.png'));
   r.get('/assets/:arquivo', (req) => servir(join('assets', req.params['arquivo']!)));
 
   return { roteador: r, auditor };

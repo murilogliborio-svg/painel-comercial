@@ -39,3 +39,7 @@ form.addEventListener('submit', async (ev) => {
 });
 
 fetch('/api/auth/eu').then((r) => { if (r.ok) location.href = '/painel'; }).catch(() => {});
+
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js').catch(() => {});
+}
