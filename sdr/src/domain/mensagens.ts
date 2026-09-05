@@ -205,6 +205,7 @@ async function processarQualificacao(
   cfgIa: ConfigIA,
   cfgWhatsapp: ConfigWhatsapp,
   auditor: Auditor,
+  alerta: AlertaConfig,
   agora: Date,
 ): Promise<void> {
   const totalHoje = await contarEnviadasHoje(db, agora);
@@ -252,16 +253,25 @@ async function processarQualificacao(
     geradaPorIa: true, idExterno: envio.idExterno,
   });
 
+  if (resposta.precisaAtencaoHumanaAgora) {
+    await enviarAlertaResposta(cfgWhatsapp, alerta, lead, auditor);
+  }
+
   const novoContador = lead.qualificacao_mensagens + 1;
   const capou = novoContador >= qualificacao.maxMensagens;
   if (resposta.qualificacaoCompleta || capou) {
     await encerrarQualificacao(db, lead.id, {
       estagio: resposta.qualificacaoCompleta ? 'quente' : 'respondeu',
-      resumo: resposta.resumo,
+      resumo: resposta.precisaAtencaoHumanaAgora
+        ? `Lead perguntou se está falando com um robô/I.A. — assumir agora. ${resposta.resumo ?? ''}`.trim()
+        : resposta.resumo,
     });
     await auditor({
       acao: 'mensagem.enviada', entidade: 'lead', entidadeId: lead.id,
-      detalhe: { qualificacao: true, encerrada: true, motivo: resposta.qualificacaoCompleta ? 'completa' : 'teto_atingido' },
+      detalhe: {
+        qualificacao: true, encerrada: true,
+        motivo: resposta.precisaAtencaoHumanaAgora ? 'perguntou_se_e_robo' : (resposta.qualificacaoCompleta ? 'completa' : 'teto_atingido'),
+      },
     });
   } else {
     await avancarQualificacao(db, lead.id, novoContador);
@@ -345,7 +355,7 @@ export async function tratarMensagemRecebida(
     && (primeiraResposta || !!lead.qualificacao_ativa);
   if (!podeQualificar) return;
 
-  await processarQualificacao(db, lead, persona, regras, qualificacao, cfgIa, cfgWhatsapp, auditor, agora);
+  await processarQualificacao(db, lead, persona, regras, qualificacao, cfgIa, cfgWhatsapp, auditor, alerta, agora);
 }
 
 export { buscarLeadPorTelefone };

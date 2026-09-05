@@ -75,7 +75,8 @@ function montarSystemPrompt(persona: PersonaConfig): string {
       + 'a energia de quem responde, nunca impondo a sua.',
     '- Não invente promessa, preço, condição ou prazo que não esteja no contexto fornecido.',
     '- Se o lead pedir para não receber mais mensagens, isso é tratado fora deste texto — não gere respostas para esse caso.',
-    '- Se for perguntado diretamente se quem escreve é um robô ou I.A., a orientação da empresa é responder com honestidade; não inclua negação disso na mensagem.',
+    '- Se o lead perguntar diretamente se está falando com um robô, uma I.A. ou um sistema automático, não '
+      + 'confirme nem negue: redirecione com naturalidade para alguém do time assumir a conversa.',
     '- Devolva SOMENTE o texto da mensagem, sem aspas, sem explicação, sem markdown.',
   ].filter(Boolean).join('\n');
 }
@@ -161,6 +162,8 @@ export interface RespostaQualificacao {
   mensagem: string;
   qualificacaoCompleta: boolean;
   resumo: string | null;
+  /** true se o lead perguntou diretamente se está falando com um robô/I.A. — precisa de um humano assumir já. */
+  precisaAtencaoHumanaAgora: boolean;
 }
 
 const FERRAMENTA_QUALIFICACAO = {
@@ -185,6 +188,14 @@ const FERRAMENTA_QUALIFICACAO = {
         description:
           'Resumo curto (2-4 linhas) do que foi levantado até agora, para o vendedor ler rápido ao assumir. '
           + 'Preencha SOMENTE quando qualificacao_completa for true.',
+      },
+      precisa_atencao_humana_agora: {
+        type: 'boolean',
+        description:
+          'true se o lead perguntou diretamente se está falando com um robô, uma inteligência artificial ou '
+          + 'um sistema automático. Nesse caso a mensagem NÃO deve confirmar nem negar isso — apenas '
+          + 'redirecione com naturalidade (ex.: "boa pergunta! já vou te colocar com alguém do time aqui, um '
+          + 'segundo") e marque também qualificacao_completa como true, para alguém assumir a conversa agora.',
       },
     },
     required: ['mensagem', 'qualificacao_completa'],
@@ -218,8 +229,9 @@ function montarSystemPromptQualificacao(persona: PersonaConfig, objetivo: string
       + 'na hora, mesmo sem ter perguntado tudo: não segure a pessoa que já quer avançar.',
     '- Se o lead responder algo que não tem a ver (ou pedir pra parar), marque qualificação completa também: '
       + 'não insista sozinho, deixe para o humano decidir.',
-    '- Se for perguntado diretamente se quem escreve é um robô ou I.A., a orientação da empresa é responder '
-      + 'com honestidade; não inclua negação disso na mensagem.',
+    '- Se o lead perguntar diretamente se está falando com um robô, uma inteligência artificial ou um sistema '
+      + 'automático, NÃO confirme nem negue isso na mensagem — responda com naturalidade redirecionando para '
+      + 'alguém do time assumir agora, e marque precisa_atencao_humana_agora e qualificacao_completa como true.',
     '- Sempre use a ferramenta responder_lead — nunca responda em texto livre fora dela.',
   ].filter(Boolean).join('\n');
 }
@@ -277,12 +289,16 @@ export async function gerarRespostaQualificacao(
     content?: Array<{ type: string; input?: unknown }>;
   };
   const chamada = json.content?.find((b) => b.type === 'tool_use');
-  const entrada = chamada?.input as { mensagem?: string; qualificacao_completa?: boolean; resumo?: string } | undefined;
+  const entrada = chamada?.input as {
+    mensagem?: string; qualificacao_completa?: boolean; resumo?: string; precisa_atencao_humana_agora?: boolean;
+  } | undefined;
   if (!entrada?.mensagem) throw new ErroIA('resposta_vazia', 'A I.A. não devolveu uma mensagem válida.');
 
+  const precisaAtencaoHumanaAgora = !!entrada.precisa_atencao_humana_agora;
   return {
     mensagem: entrada.mensagem.trim(),
-    qualificacaoCompleta: !!entrada.qualificacao_completa,
+    qualificacaoCompleta: !!entrada.qualificacao_completa || precisaAtencaoHumanaAgora,
     resumo: entrada.resumo?.trim() || null,
+    precisaAtencaoHumanaAgora,
   };
 }
