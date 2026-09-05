@@ -65,6 +65,8 @@ function montarSystemPrompt(persona: PersonaConfig): string {
     '',
     'REGRAS FIXAS, NUNCA QUEBRE:',
     '- Escreva em português do Brasil, curto (2 a 4 frases), como quem digita no WhatsApp — não como e-mail.',
+    '- Nunca use travessão (—) nas mensagens: é um dos maiores sinais de texto gerado por I.A. Pontue como '
+      + 'gente de verdade digitando rápido — vírgula, ponto, ou frases mais curtas em vez de frase-com-travessão.',
     '- Nunca use "prezado(a)", "vimos por meio desta", "informamos que" ou qualquer fórmula de robô/call center.',
     '- Nunca repita a mesma abertura de mensagens anteriores da conversa: varie a frase inicial.',
     '- Não use mais de um emoji, e só se combinar com o tom pedido.',
@@ -233,6 +235,8 @@ function montarSystemPromptQualificacao(persona: PersonaConfig, objetivo: string
     'REGRAS FIXAS, NUNCA QUEBRE:',
     '- Uma pergunta por vez — nunca uma lista de perguntas na mesma mensagem.',
     '- Português do Brasil, curto (1 a 3 frases), como quem digita no WhatsApp.',
+    '- Nunca use travessão (—) nas mensagens: é um dos maiores sinais de texto gerado por I.A. Pontue como '
+      + 'gente de verdade digitando rápido — vírgula, ponto, ou frases mais curtas em vez de frase-com-travessão.',
     '- Nunca use "prezado(a)", "vimos por meio desta", "informamos que" ou qualquer fórmula de robô/call center.',
     '- Use o primeiro nome do lead pelo menos uma vez na conversa (a saudação inicial é um bom lugar) — mas '
       + 'não repita o nome em toda mensagem, isso soa forçado.',
