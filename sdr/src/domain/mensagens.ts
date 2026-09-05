@@ -236,6 +236,21 @@ async function processarQualificacao(
     return;
   }
 
+  // O lead perguntou diretamente se está falando com um robô/I.A.: nenhuma mensagem é enviada
+  // (nem uma resposta evasiva) — a I.A. se cala e um humano assume a conversa a partir daqui.
+  if (resposta.precisaAtencaoHumanaAgora) {
+    await auditor({
+      acao: 'mensagem.bloqueada_por_regra', entidade: 'lead', entidadeId: lead.id,
+      detalhe: { motivo: 'lead_perguntou_se_e_robo', mensagemGeradaNaoEnviada: resposta.mensagem },
+    });
+    await enviarAlertaResposta(cfgWhatsapp, alerta, lead, auditor);
+    await encerrarQualificacao(db, lead.id, {
+      estagio: 'quente',
+      resumo: 'Lead perguntou se está falando com um robô/I.A. — assumir a conversa agora.',
+    });
+    return;
+  }
+
   const envio = await enviarWhatsapp(cfgWhatsapp, lead.telefone, resposta.mensagem);
   if (!envio.ok) {
     await registrarMensagem(db, lead.id, 'saida', resposta.mensagem, 'falhou', {
@@ -253,25 +268,16 @@ async function processarQualificacao(
     geradaPorIa: true, idExterno: envio.idExterno,
   });
 
-  if (resposta.precisaAtencaoHumanaAgora) {
-    await enviarAlertaResposta(cfgWhatsapp, alerta, lead, auditor);
-  }
-
   const novoContador = lead.qualificacao_mensagens + 1;
   const capou = novoContador >= qualificacao.maxMensagens;
   if (resposta.qualificacaoCompleta || capou) {
     await encerrarQualificacao(db, lead.id, {
       estagio: resposta.qualificacaoCompleta ? 'quente' : 'respondeu',
-      resumo: resposta.precisaAtencaoHumanaAgora
-        ? `Lead perguntou se está falando com um robô/I.A. — assumir agora. ${resposta.resumo ?? ''}`.trim()
-        : resposta.resumo,
+      resumo: resposta.resumo,
     });
     await auditor({
       acao: 'mensagem.enviada', entidade: 'lead', entidadeId: lead.id,
-      detalhe: {
-        qualificacao: true, encerrada: true,
-        motivo: resposta.precisaAtencaoHumanaAgora ? 'perguntou_se_e_robo' : (resposta.qualificacaoCompleta ? 'completa' : 'teto_atingido'),
-      },
+      detalhe: { qualificacao: true, encerrada: true, motivo: resposta.qualificacaoCompleta ? 'completa' : 'teto_atingido' },
     });
   } else {
     await avancarQualificacao(db, lead.id, novoContador);

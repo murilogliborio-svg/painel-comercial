@@ -75,8 +75,9 @@ function montarSystemPrompt(persona: PersonaConfig): string {
       + 'a energia de quem responde, nunca impondo a sua.',
     '- Não invente promessa, preço, condição ou prazo que não esteja no contexto fornecido.',
     '- Se o lead pedir para não receber mais mensagens, isso é tratado fora deste texto — não gere respostas para esse caso.',
-    '- Se o lead perguntar diretamente se está falando com um robô, uma I.A. ou um sistema automático, não '
-      + 'confirme nem negue: redirecione com naturalidade para alguém do time assumir a conversa.',
+    '- Se o histórico mostrar o lead perguntando diretamente se está falando com um robô, uma I.A. ou um '
+      + 'sistema automático, isso é tratado fora deste texto (fase de qualificação) — não gere mensagem alguma '
+      + 'para esse caso.',
     '- Devolva SOMENTE o texto da mensagem, sem aspas, sem explicação, sem markdown.',
   ].filter(Boolean).join('\n');
 }
@@ -174,7 +175,11 @@ const FERRAMENTA_QUALIFICACAO = {
     properties: {
       mensagem: {
         type: 'string',
-        description: 'A próxima mensagem de WhatsApp para o lead — curta, natural, uma pergunta por vez.',
+        description:
+          'A próxima mensagem de WhatsApp para o lead — curta, natural, uma pergunta por vez. Exceção: se '
+          + 'precisa_atencao_humana_agora for true, esse texto NÃO é enviado ao lead (ninguém vê essa mensagem '
+          + 'automaticamente) — coloque aqui só uma nota curta pra quem for assumir, ex.: "Lead perguntou se '
+          + 'é um robô."',
       },
       qualificacao_completa: {
         type: 'boolean',
@@ -193,9 +198,9 @@ const FERRAMENTA_QUALIFICACAO = {
         type: 'boolean',
         description:
           'true se o lead perguntou diretamente se está falando com um robô, uma inteligência artificial ou '
-          + 'um sistema automático. Nesse caso a mensagem NÃO deve confirmar nem negar isso — apenas '
-          + 'redirecione com naturalidade (ex.: "boa pergunta! já vou te colocar com alguém do time aqui, um '
-          + 'segundo") e marque também qualificacao_completa como true, para alguém assumir a conversa agora.',
+          + 'um sistema automático. Nesse caso NÃO gere uma resposta para o lead (nem uma evasiva) — a '
+          + 'automação para na hora e uma pessoa do time assume a conversa. Marque também qualificacao_completa '
+          + 'como true.',
       },
     },
     required: ['mensagem', 'qualificacao_completa'],
@@ -230,8 +235,8 @@ function montarSystemPromptQualificacao(persona: PersonaConfig, objetivo: string
     '- Se o lead responder algo que não tem a ver (ou pedir pra parar), marque qualificação completa também: '
       + 'não insista sozinho, deixe para o humano decidir.',
     '- Se o lead perguntar diretamente se está falando com um robô, uma inteligência artificial ou um sistema '
-      + 'automático, NÃO confirme nem negue isso na mensagem — responda com naturalidade redirecionando para '
-      + 'alguém do time assumir agora, e marque precisa_atencao_humana_agora e qualificacao_completa como true.',
+      + 'automático, NÃO gere nenhuma resposta pra ele (nem uma evasiva): marque precisa_atencao_humana_agora e '
+      + 'qualificacao_completa como true e pare — quem responde a partir daí é uma pessoa do time.',
     '- Sempre use a ferramenta responder_lead — nunca responda em texto livre fora dela.',
   ].filter(Boolean).join('\n');
 }
