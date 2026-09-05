@@ -1,4 +1,9 @@
 /* Tela de login. Sem dependências, sem script inline (a CSP proíbe). */
+const temaSalvo = localStorage.getItem('sdr-tema');
+if (temaSalvo === 'claro' || temaSalvo === 'escuro') {
+  document.documentElement.setAttribute('data-tema', temaSalvo);
+}
+
 const form = document.getElementById('form-login');
 const caixaErro = document.getElementById('erro');
 const botao = document.getElementById('entrar');

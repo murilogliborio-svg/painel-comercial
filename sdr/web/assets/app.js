@@ -4,6 +4,29 @@ if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('/sw.js').catch(() => {});
 }
 
+function temaAtual() {
+  const salvo = localStorage.getItem('sdr-tema');
+  if (salvo === 'claro' || salvo === 'escuro') return salvo;
+  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'escuro' : 'claro';
+}
+
+function definirOculto(el, oculto) {
+  if (oculto) el.setAttribute('hidden', ''); else el.removeAttribute('hidden');
+}
+
+function aplicarTema(tema) {
+  document.documentElement.setAttribute('data-tema', tema);
+  definirOculto(document.getElementById('icone-tema-claro'), tema !== 'escuro');
+  definirOculto(document.getElementById('icone-tema-escuro'), tema === 'escuro');
+}
+
+aplicarTema(temaAtual());
+document.getElementById('btn-tema').addEventListener('click', () => {
+  const novo = document.documentElement.getAttribute('data-tema') === 'escuro' ? 'claro' : 'escuro';
+  localStorage.setItem('sdr-tema', novo);
+  aplicarTema(novo);
+});
+
 function csrf() {
   const m = document.cookie.match(/(?:^|;\s*)(?:__Host-)?sdr-csrf=([^;]*)/);
   return m ? decodeURIComponent(m[1]) : '';
@@ -127,6 +150,13 @@ document.getElementById('btn-sair').addEventListener('click', async () => {
 
 // ------------------------------------------------------------------ abas --
 
+const MOBILE = () => window.matchMedia('(max-width: 900px)').matches;
+
+function fecharMenuMobile() {
+  document.getElementById('abas').classList.add('escondido');
+  document.getElementById('btn-menu-mobile').setAttribute('aria-expanded', 'false');
+}
+
 function configurarAbas() {
   const secoes = {
     leads: document.getElementById('painel-leads'),
@@ -134,12 +164,20 @@ function configurarAbas() {
     usuarios: document.getElementById('painel-usuarios'),
     auditoria: document.getElementById('painel-auditoria'),
   };
+  if (MOBILE()) fecharMenuMobile();
+  document.getElementById('btn-menu-mobile').addEventListener('click', () => {
+    const abas = document.getElementById('abas');
+    const abrindo = abas.classList.contains('escondido');
+    abas.classList.toggle('escondido');
+    document.getElementById('btn-menu-mobile').setAttribute('aria-expanded', String(abrindo));
+  });
   document.getElementById('abas').addEventListener('click', async (ev) => {
     const btn = ev.target.closest('button[data-aba]');
     if (!btn) return;
     for (const b of document.querySelectorAll('#abas button')) b.setAttribute('aria-selected', String(b === btn));
     for (const [nome, el] of Object.entries(secoes)) el.hidden = nome !== btn.dataset.aba;
     document.getElementById('titulo-pagina').textContent = btn.querySelector('span').textContent;
+    if (MOBILE()) fecharMenuMobile();
     if (btn.dataset.aba === 'config') await carregarConfig();
     if (btn.dataset.aba === 'usuarios') await carregarUsuarios();
     if (btn.dataset.aba === 'auditoria') await carregarAuditoria();

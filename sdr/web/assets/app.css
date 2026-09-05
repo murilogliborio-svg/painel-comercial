@@ -135,7 +135,16 @@ textarea { resize: vertical; min-height: 76px; }
   display: flex; flex-direction: column;
   position: sticky; top: 0; height: 100vh; overflow-y: auto; z-index: 20;
 }
-.lateral-marca { padding: 24px 22px 20px; border-bottom: 1px solid var(--marca-linha); }
+.lateral-marca {
+  padding: 24px 22px 20px; border-bottom: 1px solid var(--marca-linha);
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+}
+.btn-hamburguer {
+  display: none; flex: none; background: none; border: none; color: var(--marca-ink);
+  cursor: pointer; padding: 6px; border-radius: 8px;
+}
+.btn-hamburguer:hover { background: rgba(255, 255, 255, .08); }
+.btn-hamburguer svg { display: block; width: 22px; height: 22px; }
 .marca-wordmark {
   font-family: Georgia, 'Iowan Old Style', 'Palatino Linotype', 'Book Antiqua', serif;
   color: var(--marca-ink); display: flex; align-items: baseline; gap: 7px; white-space: nowrap;
@@ -178,14 +187,19 @@ nav.abas button[aria-selected="true"] svg { color: var(--marca-navy); }
 .quem { font-size: 12.5px; color: var(--ink2); text-align: right; line-height: 1.35; }
 .quem b { display: block; color: var(--ink); }
 
+.btn-tema { padding: 7px; }
+.btn-tema svg { display: block; width: 17px; height: 17px; }
+.btn-tema svg[hidden] { display: none; }
+
 main { max-width: 1240px; margin: 0 auto; padding: 22px 24px 80px; }
 
 @media (max-width: 900px) {
   .shell { flex-direction: column; }
-  .lateral { width: auto; height: auto; position: static; flex-direction: row; align-items: center; }
-  .lateral-marca { border-bottom: none; border-right: 1px solid var(--marca-linha); padding: 14px 16px; }
+  .lateral { width: auto; height: auto; position: static; flex-direction: column; }
+  .lateral-marca { border-bottom: 1px solid var(--marca-linha); padding: 14px 16px; }
   .marca-tag { display: none; }
-  nav.abas { flex-direction: row; overflow-x: auto; padding: 8px 10px; }
+  .btn-hamburguer { display: inline-flex; }
+  nav.abas { flex-direction: column; padding: 8px 10px 14px; }
 }
 
 .cartao {
