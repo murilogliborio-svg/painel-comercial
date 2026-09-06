@@ -26,10 +26,18 @@ describe('janela comercial', () => {
     assert.ok(!dentroDaJanelaComercial(regras, noite));
   });
 
-  test('recusa fim de semana', () => {
+  test('padrão aceita fim de semana também (envio autônomo liberado 7 dias)', () => {
     const regras = regrasPadrao();
     const domingo = new Date('2026-09-06T14:00:00'); // domingo
+    assert.ok(dentroDaJanelaComercial(regras, domingo));
+  });
+
+  test('respeita dias permitidos quando restringidos manualmente', () => {
+    const regras = { ...regrasPadrao(), diasPermitidos: [1, 2, 3, 4, 5] }; // só dias úteis
+    const domingo = new Date('2026-09-06T14:00:00'); // domingo
+    const quarta14h = new Date('2026-09-02T14:00:00');
     assert.ok(!dentroDaJanelaComercial(regras, domingo));
+    assert.ok(dentroDaJanelaComercial(regras, quarta14h));
   });
 });
 

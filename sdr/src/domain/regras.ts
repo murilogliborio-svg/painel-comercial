@@ -44,7 +44,7 @@ export function regrasPadrao(): RegrasEnvio {
   return {
     horarioInicio: 9,
     horarioFim: 19,
-    diasPermitidos: [1, 2, 3, 4, 5],
+    diasPermitidos: [0, 1, 2, 3, 4, 5, 6],
     limiteMsgsPorDia: 60,
     intervaloMinHoras: 48,
     maxSequenciaSemResposta: 3,

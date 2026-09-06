@@ -598,11 +598,13 @@ function configurarConfig() {
       corpoTemplate: div.querySelector('.p-corpo-template').value.trim(),
       nomeVariavel: div.querySelector('.p-nome-variavel').value.trim(),
     }));
+    const diasPermitidos = [...document.querySelectorAll('.r-dia:checked')].map((el) => Number(el.value));
     try {
       await api('/api/config/regras', {
         method: 'PUT',
         body: {
           horarioInicio: Number(val('r-hi')), horarioFim: Number(val('r-hf')),
+          diasPermitidos,
           limiteMsgsPorDia: Number(val('r-teto')), intervaloMinHoras: Number(val('r-intervalo')),
           maxSequenciaSemResposta: Number(val('r-semresposta')),
           palavrasOptOut: val('r-optout').split(',').map((s) => s.trim()).filter(Boolean),
@@ -677,6 +679,9 @@ async function carregarConfig() {
 
   document.getElementById('r-hi').value = regras.horarioInicio;
   document.getElementById('r-hf').value = regras.horarioFim;
+  document.querySelectorAll('.r-dia').forEach((el) => {
+    el.checked = regras.diasPermitidos.includes(Number(el.value));
+  });
   document.getElementById('r-teto').value = regras.limiteMsgsPorDia;
   document.getElementById('r-intervalo').value = regras.intervaloMinHoras;
   document.getElementById('r-semresposta').value = regras.maxSequenciaSemResposta;
