@@ -492,8 +492,14 @@ td.nome { font-weight: 600; text-align: left; }
 .item-lead[aria-selected="true"] { border-color: var(--s1); background: color-mix(in srgb, var(--s1) 7%, var(--surface)); }
 .item-lead-corpo { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
 .item-lead-topo { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.item-lead-topo .nome-linha {
+  display: flex; align-items: baseline; gap: 6px; min-width: 0; flex: 1; overflow: hidden;
+}
 .item-lead-topo .nome {
   font-weight: 600; font-size: 13.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.item-lead-topo .responsavel {
+  font-size: 11px; color: var(--muted); flex: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .item-lead-topo .quando { font-size: 11px; color: var(--muted); flex: none; }
 .item-lead-baixo { display: flex; justify-content: space-between; align-items: center; gap: 8px; }

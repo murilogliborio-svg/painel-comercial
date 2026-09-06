@@ -113,6 +113,7 @@ const ROTULO_ESTAGIO = {
 // ---------------------------------------------------------------- sessão --
 
 let EU = null;
+let MAPA_RESPONSAVEIS = {};
 
 async function iniciar() {
   try {
@@ -224,6 +225,7 @@ function reiniciarPollConversa(id) {
 
 async function carregarOpcoesResponsavel() {
   const j = await api('/api/usuarios');
+  MAPA_RESPONSAVEIS = Object.fromEntries(j.usuarios.map((u) => [u.id, u.nome]));
   const selects = ['filtro-responsavel', 'lead-responsavel', 'l-responsavel', 'imp-responsavel']
     .map((id) => document.getElementById(id));
   for (const sel of selects) {
@@ -442,7 +444,10 @@ function renderLista(leads) {
       <span class="avatar ${classeAvatar(lead.nome)}"></span>
       <span class="item-lead-corpo">
         <span class="item-lead-topo">
-          <span class="nome"></span>
+          <span class="nome-linha">
+            <span class="nome"></span>
+            <span class="responsavel"></span>
+          </span>
           <span class="quando"></span>
         </span>
         <span class="item-lead-baixo">
@@ -452,6 +457,7 @@ function renderLista(leads) {
       </span>`;
     btn.querySelector('.avatar').textContent = iniciais(lead.nome);
     btn.querySelector('.nome').textContent = lead.nome;
+    btn.querySelector('.responsavel').textContent = lead.responsavel_id ? MAPA_RESPONSAVEIS[lead.responsavel_id] || '' : '';
     btn.querySelector('.quando').textContent = fmtDataLista(lead.ultima_mensagem_em);
     const prefixo = lead.ultima_mensagem_direcao === 'saida' ? 'Você: ' : '';
     btn.querySelector('.preview').textContent = lead.ultima_mensagem_texto
