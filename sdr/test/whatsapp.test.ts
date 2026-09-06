@@ -46,6 +46,23 @@ describe('extração de mensagens inbound', () => {
     assert.deepEqual(out, [{ telefone: '5511999999999', texto: 'oi', idExterno: 'wamid.abc' }]);
   });
 
+  test('lê clique em botão de resposta rápida de um modelo como se fosse texto', () => {
+    const payload = {
+      entry: [{
+        changes: [{
+          value: {
+            messages: [{
+              from: '5511999999999', id: 'wamid.btn', type: 'button',
+              button: { text: 'Quero falar', payload: 'quero_falar' },
+            }],
+          },
+        }],
+      }],
+    };
+    const out = extrairMensagensInbound(payload);
+    assert.deepEqual(out, [{ telefone: '5511999999999', texto: 'Quero falar', idExterno: 'wamid.btn' }]);
+  });
+
   test('ignora eventos que não são mensagem de texto', () => {
     const payload = { entry: [{ changes: [{ value: { statuses: [{ id: 'x' }] } }] }] };
     assert.deepEqual(extrairMensagensInbound(payload), []);

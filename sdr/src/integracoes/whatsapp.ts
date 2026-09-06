@@ -162,8 +162,14 @@ export interface MensagemInbound {
 /**
  * Extrai mensagens de texto recebidas do payload de webhook da Cloud API.
  * O formato tem vários níveis de aninhamento (entry[].changes[].value...);
- * eventos que não são mensagem de texto (status de entrega, mídia) são
- * ignorados aqui — quem chama decide se quer tratá-los.
+ * eventos que não são mensagem de texto nem clique em botão de modelo
+ * (status de entrega, mídia) são ignorados aqui — quem chama decide se
+ * quer tratá-los.
+ *
+ * Clique em botão de "resposta rápida" de um modelo (ex.: "Quero falar",
+ * "Encerrar") chega como type "button", não "text" — tratamos o texto do
+ * botão exatamente como se o lead tivesse digitado essa frase, pra cair
+ * nas mesmas regras (opt-out, qualificação) sem precisar de lógica nova.
  */
 export function extrairMensagensInbound(payload: unknown): MensagemInbound[] {
   const out: MensagemInbound[] = [];
@@ -177,9 +183,14 @@ export function extrairMensagensInbound(payload: unknown): MensagemInbound[] {
       const mensagens = (mudanca as { value?: { messages?: unknown[] } })?.value?.messages;
       if (!Array.isArray(mensagens)) continue;
       for (const m of mensagens) {
-        const msg = m as { from?: string; id?: string; type?: string; text?: { body?: string } };
+        const msg = m as {
+          from?: string; id?: string; type?: string;
+          text?: { body?: string }; button?: { text?: string };
+        };
         if (msg.type === 'text' && msg.text?.body && msg.from && msg.id) {
           out.push({ telefone: msg.from, texto: msg.text.body, idExterno: msg.id });
+        } else if (msg.type === 'button' && msg.button?.text && msg.from && msg.id) {
+          out.push({ telefone: msg.from, texto: msg.button.text, idExterno: msg.id });
         }
       }
     }
