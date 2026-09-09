@@ -171,7 +171,15 @@ export async function processarLead(
   return { leadId: lead.id, enviado: true, motivo: envio.simulado ? 'enviado_simulado' : 'enviado' };
 }
 
-/** Varre os leads devidos e processa cada um. Chamada pelo temporizador em main.ts. */
+// Trava simples de reentrância: a varredura automática (a cada N minutos) e o
+// botão "Disparar varredura agora" chamam a mesma função. Sem isso, as duas
+// podem rodar ao mesmo tempo, pegar o mesmo lead como "devido" nas duas
+// consultas (nenhuma delas ainda atualizou o próximo passo) e mandar a
+// mesma mensagem em duplicidade. Um único processo Node, então uma flag em
+// memória basta — não precisa de lock no banco.
+let VARREDURA_EM_ANDAMENTO = false;
+
+/** Varre os leads devidos e processa cada um. Chamada pelo temporizador em main.ts e pelo botão manual. */
 export async function varrerLeadsDevidos(
   db: Db,
   persona: PersonaConfig,
@@ -181,12 +189,23 @@ export async function varrerLeadsDevidos(
   auditor: Auditor,
   agora: Date = new Date(),
 ): Promise<ResultadoVarredura[]> {
-  const devidos = await listarLeadsDevidos(db, agora.toISOString());
-  const resultados: ResultadoVarredura[] = [];
-  for (const lead of devidos) {
-    resultados.push(await processarLead(db, lead, persona, regras, cfgIa, cfgWhatsapp, auditor, agora));
+  if (VARREDURA_EM_ANDAMENTO) {
+    console.error(JSON.stringify({
+      ts: agora.toISOString(), nivel: 'aviso', msg: 'varredura ignorada: outra já está em andamento',
+    }));
+    return [];
   }
-  return resultados;
+  VARREDURA_EM_ANDAMENTO = true;
+  try {
+    const devidos = await listarLeadsDevidos(db, agora.toISOString());
+    const resultados: ResultadoVarredura[] = [];
+    for (const lead of devidos) {
+      resultados.push(await processarLead(db, lead, persona, regras, cfgIa, cfgWhatsapp, auditor, agora));
+    }
+    return resultados;
+  } finally {
+    VARREDURA_EM_ANDAMENTO = false;
+  }
 }
 
 /**
